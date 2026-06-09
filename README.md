@@ -26,15 +26,23 @@ AppHost and standalone runs.
 
 ## Host for friends via dev tunnels
 
-```bash
-devtunnel user login
-devtunnel host -p 5201 --allow-anonymous
-```
+The AppHost includes Aspire's native dev tunnels integration (`Aspire.Hosting.DevTunnels`):
+a `tunnel` resource fronts the game's http endpoint with anonymous access enabled, so
+`dotnet run --project src/JustOne.AppHost` is all it takes — the public
+`https://….devtunnels.ms` URL appears on the **tunnel** resource in the Aspire dashboard.
+Share that URL (or URL + room code) with your friends.
 
-Share the printed `https://….devtunnels.ms` URL. Tunnel the **http** port — the tunnel
-provides TLS at the edge, and the app deliberately does not redirect to its local https
-endpoint. WebSockets (Blazor's circuit transport) work through dev tunnels out of the box.
-Guests may see a one-time anonymous-access interstitial on first visit — just continue.
+One-time setup: install the [devtunnel CLI](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started#install)
+and run `devtunnel user login`. If the CLI is missing the tunnel resource reports it in
+the dashboard and the game still runs locally on port 5201.
+
+Notes:
+- The tunnel exposes the **http** endpoint; dev tunnels terminate TLS at the edge, and
+  the app deliberately does not redirect to its local https endpoint.
+- WebSockets (Blazor's circuit transport) work through dev tunnels out of the box.
+- Guests may see a one-time anonymous-access interstitial on first visit — just continue.
+- Don't want the tunnel on a given run? Comment out the `AddDevTunnel` block in
+  `src/JustOne.AppHost/AppHost.cs`, or run the web project standalone.
 
 ## Project layout
 

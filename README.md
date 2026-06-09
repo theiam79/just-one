@@ -13,6 +13,20 @@ writes a one-word clue — but identical clues cancel out and are never shown.
 - 3–12 players; refreshing the page rejoins your seat (identity lives in `localStorage`);
   mid-game joiners spectate until the next game; the host can skip stuck players or rounds
 
+## Screenshots
+
+| Create or join | Lobby | Pick a number |
+| :---: | :---: | :---: |
+| ![Home screen](docs/screenshots/home.png) | ![Lobby with three players](docs/screenshots/lobby.png) | ![Guesser picks a number 1–5](docs/screenshots/number-pick.png) |
+
+| Write a clue | Check for duplicates | Guess |
+| :---: | :---: | :---: |
+| ![Clue writing with the mystery word](docs/screenshots/clue-writing.png) | ![Clue review before revealing](docs/screenshots/clue-review.png) | ![Guesser sees the surviving clues](docs/screenshots/guessing.png) |
+
+| Close enough? | Round result | Game over |
+| :---: | :---: | :---: |
+| ![Judging a near-miss guess](docs/screenshots/judging.png) | ![Round result](docs/screenshots/round-result.png) | ![Final score and recap](docs/screenshots/game-over.png) |
+
 ## Run it
 
 ```bash

@@ -96,6 +96,15 @@ else
             }
         </section>
 
+        @if (_view.HasHostPowers && !_view.IAmGuesser
+             && _view.Phase is GamePhase.NumberPick or GamePhase.ClueWriting or GamePhase.ClueReview or GamePhase.Guessing or GamePhase.Judging)
+        {
+            <button class="btn ghost skip-round" title="If someone dropped off the call, abandon this round — it counts as a pass"
+                    @onclick="() => Act(g => g.SkipRound(_view.MyId))">
+                Skip this round (counts as a pass)
+            </button>
+        }
+
         <PlayerList View="_view" Act="Act" />
     </div>
 }

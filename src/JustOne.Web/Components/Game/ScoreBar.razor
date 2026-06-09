@@ -1,0 +1,15 @@
+@if (View.Phase is not GamePhase.Lobby)
+{
+    <div class="score-bar">
+        <div class="stat"><span class="stat-value">@View.Score</span><span class="stat-label">points</span></div>
+        @if (View.Phase is not GamePhase.GameOver)
+        {
+            <div class="stat"><span class="stat-value">@View.RoundNumber</span><span class="stat-label">round</span></div>
+        }
+        <div class="stat"><span class="stat-value">@View.CardsLeft</span><span class="stat-label">cards left</span></div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public required RoomView View { get; set; }
+}

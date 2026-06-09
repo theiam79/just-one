@@ -1,0 +1,44 @@
+<div class="phase-card">
+    @if (View.IAmGuesser)
+    {
+        <h2>Clues are being written…</h2>
+        <p class="waiting">Look away from any screen sharing! Your friends are writing one-word clues for you.</p>
+    }
+    else if (View.IAmExpectedWriter)
+    {
+        <h2>The mystery word is</h2>
+        <div class="mystery-word">@View.MysteryWord</div>
+        <p>Write <strong>one</strong> clue word to help @View.GuesserName. Identical clues cancel each other out!</p>
+        <form class="clue-form" @onsubmit="SubmitClue">
+            <input maxlength="@ClueNormalizer.MaxWordLength" placeholder="your one-word clue" @bind="_clue" @bind:event="oninput" />
+            <button class="btn primary" type="submit">@(View.MyClueText is null ? "Submit" : "Update")</button>
+        </form>
+        @if (View.MyClueText is not null)
+        {
+            <p class="hint">Your clue is in: <strong>@View.MyClueText</strong>. You can change it until everyone's done.</p>
+        }
+        @if (View.PendingWriters.Count > 0)
+        {
+            <p class="hint">Waiting for: @string.Join(", ", View.PendingWriters.Select(p => p.Name))</p>
+        }
+    }
+    else
+    {
+        <h2>Round @View.RoundNumber</h2>
+        <p class="waiting">Clues are being written for @View.GuesserName — you'll play next game!</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required RoomView View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+
+    private string _clue = "";
+
+    private void SubmitClue()
+    {
+        var clue = _clue;
+        Act(g => g.SubmitClue(View.MyId, clue));
+        _clue = "";
+    }
+}

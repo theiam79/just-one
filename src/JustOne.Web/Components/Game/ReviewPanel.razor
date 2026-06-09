@@ -1,0 +1,39 @@
+<div class="phase-card">
+    @if (View.IAmGuesser)
+    {
+        <h2>Almost there…</h2>
+        <p class="waiting">Your friends are checking the clues for duplicates.</p>
+    }
+    else
+    {
+        <h2>Check the clues</h2>
+        <p>
+            The word is <strong class="inline-word">@View.MysteryWord</strong>.
+            Identical clues are already cancelled. Tap a clue to cancel variants of the same word
+            (prince / princess, plural forms…) — agree on the call!
+        </p>
+        <div class="clue-grid">
+            @foreach (var clue in View.Clues)
+            {
+                <button class="clue-card @(clue.Cancelled ? "cancelled" : "") @(clue.AutoCancelled ? "locked" : "")"
+                        disabled="@(View.IAmSpectator || clue.AutoCancelled)"
+                        title="@(clue.AutoCancelled ? "Identical clues stay cancelled" : "Tap to toggle")"
+                        @onclick="() => Act(g => g.ToggleClueCancellation(View.MyId, clue.AuthorId))">
+                    <span class="clue-text">@clue.Text</span>
+                    <span class="clue-author">@clue.AuthorName @(clue.AutoCancelled ? "· duplicate" : clue.ManuallyCancelled ? "· cancelled" : "")</span>
+                </button>
+            }
+        </div>
+        @if (!View.IAmSpectator)
+        {
+            <button class="btn primary big" @onclick="() => Act(g => g.RevealClues(View.MyId))">
+                Show @View.VisibleClueCount @(View.VisibleClueCount == 1 ? "clue" : "clues") to @View.GuesserName
+            </button>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required RoomView View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+}

@@ -1,0 +1,28 @@
+<div class="phase-card">
+    @if (View.IAmGuesser)
+    {
+        <h2>You guessed “@View.Guess”</h2>
+        <p class="waiting">Not letter-perfect — your friends are deciding if it's close enough…</p>
+    }
+    else
+    {
+        <h2>Close enough?</h2>
+        <p>
+            @View.GuesserName guessed <strong class="inline-word">@View.Guess</strong> —
+            the word was <strong class="inline-word">@View.MysteryWord</strong>.
+        </p>
+        <p class="hint">Accept typos and spelling variants; reject different words. A wrong answer also discards the next card!</p>
+        @if (!View.IAmSpectator)
+        {
+            <div class="judge-row">
+                <button class="btn primary" @onclick="() => Act(g => g.JudgeGuess(View.MyId, true))">✓ Accept</button>
+                <button class="btn danger" @onclick="() => Act(g => g.JudgeGuess(View.MyId, false))">✗ Reject</button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required RoomView View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+}

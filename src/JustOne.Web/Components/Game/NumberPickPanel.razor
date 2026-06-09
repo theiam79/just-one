@@ -1,0 +1,24 @@
+<div class="phase-card">
+    @if (View.IAmGuesser)
+    {
+        <h2>You're the guesser!</h2>
+        <p>Pick a number — it chooses the mystery word on this round's card. No peeking, obviously.</p>
+        <div class="number-row">
+            @for (var i = 1; i <= GameRoom.WordsPerCard; i++)
+            {
+                var n = i;
+                <button class="btn number" @onclick="() => Act(g => g.PickNumber(View.MyId, n))">@n</button>
+            }
+        </div>
+    }
+    else
+    {
+        <h2>Round @View.RoundNumber</h2>
+        <p class="waiting">@View.GuesserName is the guesser and is picking a number…</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required RoomView View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+}

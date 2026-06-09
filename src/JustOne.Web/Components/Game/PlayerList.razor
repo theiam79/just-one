@@ -1,0 +1,43 @@
+<div class="player-list">
+    @foreach (var p in View.Players)
+    {
+        <div class="player @(p.IsConnected ? "" : "away") @(p.Id == View.MyId ? "me" : "")">
+            <span class="dot @(p.IsConnected ? "on" : "off")" title="@(p.IsConnected ? "connected" : "away")"></span>
+            <span class="player-name">@p.Name</span>
+            @if (p.IsHost)
+            {
+                <span class="badge" title="Host">★</span>
+            }
+            @if (p.IsGuesser)
+            {
+                <span class="badge" title="Guesser this round">🎯</span>
+            }
+            @if (p.IsSpectator)
+            {
+                <span class="badge soft" title="Joins next game">watching</span>
+            }
+            @switch (p.ClueStatus)
+            {
+                case ClueStatus.Done:
+                    <span class="badge ok">✓ clue in</span>
+                    break;
+                case ClueStatus.Writing:
+                    <span class="badge soft">writing…</span>
+                    @if (View.HasHostPowers && p.Id != View.MyId)
+                    {
+                        <button class="btn tiny" title="Skip their clue so the round can continue"
+                                @onclick="() => Act(g => g.SkipPlayerClue(View.MyId, p.Id))">skip</button>
+                    }
+                    break;
+                case ClueStatus.Skipped:
+                    <span class="badge soft">skipped</span>
+                    break;
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required RoomView View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+}

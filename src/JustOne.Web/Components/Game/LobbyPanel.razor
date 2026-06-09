@@ -1,0 +1,38 @@
+<div class="phase-card">
+    <h2>Lobby</h2>
+    <p>Share the room code (or the copied link) with everyone on your call.</p>
+
+    @if (View.History.Count > 0)
+    {
+        <div class="history">
+            <h3>Previous games</h3>
+            <ul>
+                @foreach (var game in View.History)
+                {
+                    <li><strong>@game.Score / @game.Total</strong> — @game.Rating</li>
+                }
+            </ul>
+        </div>
+    }
+
+    @if (View.HasHostPowers)
+    {
+        <button class="btn primary big" disabled="@(View.Players.Count < GameRoom.MinPlayers)"
+                @onclick="() => Act(g => g.StartGame(View.MyId))">
+            Start game
+        </button>
+        @if (View.Players.Count < GameRoom.MinPlayers)
+        {
+            <p class="hint">You need at least @GameRoom.MinPlayers players (@(GameRoom.MinPlayers - View.Players.Count) more to go).</p>
+        }
+    }
+    else
+    {
+        <p class="hint">Waiting for @(View.HostName ?? "the host") to start the game…</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required RoomView View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+}

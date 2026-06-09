@@ -1,0 +1,59 @@
+<div class="phase-card">
+    <h2>Game over!</h2>
+    @{
+        var last = View.History.Count > 0 ? View.History[^1] : null;
+    }
+    @if (last is not null)
+    {
+        <div class="final-score">@last.Score <span class="of">/ @last.Total</span></div>
+        <div class="rating">@last.Rating</div>
+    }
+
+    <div class="recap">
+        <h3>Rounds</h3>
+        <ul>
+            @foreach (var round in View.CompletedRounds)
+            {
+                <li class="recap-row @round.Outcome.ToString().ToLowerInvariant()">
+                    <span class="recap-icon">@(round.Outcome switch { RoundOutcome.Correct => "✓", RoundOutcome.Wrong => "✗", _ => "–" })</span>
+                    <strong>@(round.MysteryWord ?? "(skipped)")</strong>
+                    @if (round.Guess is not null)
+                    {
+                        <span class="recap-guess">@round.GuesserName guessed “@round.Guess”</span>
+                    }
+                    else
+                    {
+                        <span class="recap-guess">@round.GuesserName passed</span>
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+
+    @if (View.History.Count > 1)
+    {
+        <div class="history">
+            <h3>Earlier games</h3>
+            <ul>
+                @foreach (var game in View.History.Take(View.History.Count - 1))
+                {
+                    <li><strong>@game.Score / @game.Total</strong> — @game.Rating</li>
+                }
+            </ul>
+        </div>
+    }
+
+    @if (View.HasHostPowers)
+    {
+        <button class="btn primary big" @onclick="() => Act(g => g.PlayAgain(View.MyId))">Play again</button>
+    }
+    else
+    {
+        <p class="hint">Waiting for @(View.HostName ?? "the host") to start another game…</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required RoomView View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+}

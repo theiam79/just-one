@@ -1,0 +1,55 @@
+<div class="phase-card">
+    @if (View.IAmGuesser)
+    {
+        <h2>Your clues</h2>
+        @if (View.Clues.Count == 0)
+        {
+            <p class="waiting">Ouch — every clue cancelled out. You can still guess… or pass.</p>
+        }
+        else
+        {
+            <div class="clue-grid">
+                @foreach (var clue in View.Clues)
+                {
+                    <div class="clue-card">
+                        <span class="clue-text">@clue.Text</span>
+                        <span class="clue-author">@clue.AuthorName</span>
+                    </div>
+                }
+            </div>
+        }
+        <form class="clue-form" @onsubmit="SubmitGuess">
+            <input placeholder="your guess" @bind="_guess" @bind:event="oninput" />
+            <button class="btn primary" type="submit">Guess</button>
+        </form>
+        <button class="btn ghost" @onclick="() => Act(g => g.Pass(View.MyId))">Pass (discard this card, no penalty)</button>
+    }
+    else
+    {
+        <h2>@View.GuesserName is guessing…</h2>
+        <p>The word is <strong class="inline-word">@View.MysteryWord</strong>. They can see:</p>
+        <div class="clue-grid">
+            @foreach (var clue in View.Clues.Where(c => !c.Cancelled))
+            {
+                <div class="clue-card">
+                    <span class="clue-text">@clue.Text</span>
+                    <span class="clue-author">@clue.AuthorName</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required RoomView View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+
+    private string _guess = "";
+
+    private void SubmitGuess()
+    {
+        var guess = _guess;
+        Act(g => g.SubmitGuess(View.MyId, guess));
+        _guess = "";
+    }
+}

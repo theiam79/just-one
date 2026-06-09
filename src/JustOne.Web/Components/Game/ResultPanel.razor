@@ -1,0 +1,48 @@
+<div class="phase-card">
+    @switch (View.Outcome)
+    {
+        case RoundOutcome.Correct:
+            <h2 class="outcome correct">Correct! 🎉</h2>
+            break;
+        case RoundOutcome.Passed:
+            <h2 class="outcome passed">Passed</h2>
+            break;
+        case RoundOutcome.Wrong:
+            <h2 class="outcome wrong">Wrong 😬</h2>
+            <p class="hint">The card is lost — and the next card goes with it.</p>
+            break;
+    }
+
+    <p>
+        The word was <strong class="inline-word">@(View.MysteryWord ?? "never revealed")</strong>@(View.Guess is not null ? $" — {View.GuesserName} guessed “{View.Guess}”" : "").
+    </p>
+
+    @if (View.Clues.Count > 0)
+    {
+        <div class="clue-grid">
+            @foreach (var clue in View.Clues)
+            {
+                <div class="clue-card @(clue.Cancelled ? "cancelled" : "")">
+                    <span class="clue-text">@clue.Text</span>
+                    <span class="clue-author">@clue.AuthorName</span>
+                </div>
+            }
+        </div>
+    }
+
+    @if (View.HasHostPowers)
+    {
+        <button class="btn primary big" @onclick="() => Act(g => g.NextRound(View.MyId))">
+            @(View.CardsLeft == 0 ? "See final score" : "Next round")
+        </button>
+    }
+    else
+    {
+        <p class="hint">Waiting for @(View.HostName ?? "the host") to continue…</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required RoomView View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+}

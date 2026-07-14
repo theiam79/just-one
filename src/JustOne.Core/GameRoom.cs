@@ -18,6 +18,11 @@ public sealed class GameRoom
     private readonly Queue<Card> _deck = new();
     private int _guesserIndex;
 
+    /// <summary>The most recent guesser, remembered across games so the rotation
+    /// resumes from the right player even when seats shift between games. Null until
+    /// the first round of the room's first game.</summary>
+    private Guid? _lastGuesserId;
+
     public GameRoom(string code, IEnumerable<string> words, Random rng)
     {
         Code = code;
@@ -157,7 +162,27 @@ public sealed class GameRoom
         BuildDeck();
         Score = 0;
         CompletedRounds.Clear();
-        _guesserIndex = 0;
+
+        // Continue the guesser rotation across games instead of always restarting
+        // at the host. The very first game of a room starts with the host (seat 0);
+        // each subsequent game resumes from whoever guessed last — looked up by
+        // identity so it stays correct even if seats shifted when players left the
+        // lobby between games — and advances to the next eligible seat.
+        if (_lastGuesserId is { } lastId)
+        {
+            var lastSeat = _players.FindIndex(p => p.Id == lastId);
+            if (lastSeat < 0)
+            {
+                lastSeat = Math.Min(_guesserIndex, _players.Count - 1);
+            }
+
+            RotateGuesserFrom(lastSeat);
+        }
+        else
+        {
+            _guesserIndex = 0;
+        }
+
         StartRound(1);
     }
 
@@ -356,6 +381,7 @@ public sealed class GameRoom
             GuesserId = _players[_guesserIndex].Id,
             Card = _deck.Dequeue(),
         };
+        _lastGuesserId = Round.GuesserId;
         Phase = GamePhase.NumberPick;
     }
 
@@ -367,6 +393,16 @@ public sealed class GameRoom
             currentIndex = Math.Min(_guesserIndex, _players.Count - 1);
         }
 
+        RotateGuesserFrom(currentIndex);
+    }
+
+    /// <summary>
+    /// Moves <see cref="_guesserIndex"/> to the next eligible seat after
+    /// <paramref name="currentIndex"/>, skipping spectators and preferring connected players.
+    /// Falls back to plain seat rotation when nobody is connected.
+    /// </summary>
+    private void RotateGuesserFrom(int currentIndex)
+    {
         int? firstEligible = null;
         for (var step = 1; step <= _players.Count; step++)
         {

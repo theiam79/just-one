@@ -15,7 +15,11 @@
         </form>
         @if (View.MyClueText is not null)
         {
-            <p class="hint">Your clue is in: <strong>@View.MyClueText</strong>. You can change it until everyone's done.</p>
+            <p class="hint">
+                Your clue is in: <strong>@View.MyClueText</strong>. You can change it until everyone's done, or
+                <button class="btn tiny ghost" type="button" @onclick="UnsubmitClue">take it back</button>
+                to keep editing without getting cut off.
+            </p>
         }
         @if (View.PendingWriters.Count > 0)
         {
@@ -40,5 +44,12 @@
         var clue = _clue;
         Act(g => g.SubmitClue(View.MyId, clue));
         _clue = "";
+    }
+
+    private void UnsubmitClue()
+    {
+        var previous = View.MyClueText;
+        Act(g => g.UnsubmitClue(View.MyId));
+        _clue = previous ?? "";
     }
 }

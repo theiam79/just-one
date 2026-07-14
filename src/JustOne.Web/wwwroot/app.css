@@ -189,7 +189,8 @@ input:focus { outline: 2px solid var(--accent); border-color: transparent; }
   text-align: center;
   color: var(--accent);
   margin: 0.5rem 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .inline-word { color: var(--accent); }
@@ -222,7 +223,7 @@ input:focus { outline: 2px solid var(--accent); border-color: transparent; }
 button.clue-card { cursor: pointer; }
 button.clue-card:disabled { cursor: default; }
 
-.clue-card .clue-text { font-size: 1.15rem; font-weight: 700; overflow-wrap: anywhere; }
+.clue-card .clue-text { font-size: 1.15rem; font-weight: 700; overflow-wrap: break-word; hyphens: auto; }
 .clue-card .clue-author { color: var(--muted); font-size: 0.78rem; }
 
 .clue-card.cancelled { opacity: 0.55; }

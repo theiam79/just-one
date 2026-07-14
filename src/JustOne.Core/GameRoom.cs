@@ -222,21 +222,21 @@ public sealed class GameRoom
             throw new GameRuleException("You're not writing a clue this round.");
         }
 
-        var trimmed = text.Trim();
-        var error = ClueNormalizer.ValidateWord(trimmed);
+        var cleaned = ClueNormalizer.Clean(text);
+        var error = ClueNormalizer.ValidateWord(cleaned);
         if (error is not null)
         {
             throw new GameRuleException(error);
         }
 
-        var normalized = ClueNormalizer.Normalize(trimmed);
+        var normalized = ClueNormalizer.Normalize(cleaned);
         if (normalized == ClueNormalizer.Normalize(Round.MysteryWord!))
         {
             throw new GameRuleException("Your clue can't be the mystery word itself.");
         }
 
         Round.SkippedWriters.Remove(callerId);
-        Round.Clues[callerId] = new Clue { AuthorId = callerId, Text = trimmed, Normalized = normalized };
+        Round.Clues[callerId] = new Clue { AuthorId = callerId, Text = cleaned, Normalized = normalized };
         TryFinishClueWriting();
     }
 

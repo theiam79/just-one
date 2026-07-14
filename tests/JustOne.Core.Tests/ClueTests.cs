@@ -33,6 +33,23 @@ public class ClueTests
     }
 
     [Test]
+    public async Task Multi_word_clue_is_accepted_and_stored_cleaned()
+    {
+        var room = InClueWriting();
+        room.SubmitClue(Bob, "  New   York ");
+        await Assert.That(room.Round!.Clues[Bob].Text).IsEqualTo("New York");
+        await Assert.That(room.Phase).IsEqualTo(GamePhase.ClueWriting);
+    }
+
+    [Test]
+    public async Task Multi_word_duplicates_auto_cancel_across_whitespace_and_case()
+    {
+        var room = InClueReview(bobClue: "New York", carolClue: "new  york");
+        await Assert.That(room.Round!.Clues[Bob].AutoCancelled).IsTrue();
+        await Assert.That(room.Round.Clues[Carol].AutoCancelled).IsTrue();
+    }
+
+    [Test]
     public async Task Clue_matching_the_mystery_word_is_rejected()
     {
         var room = InClueWriting();

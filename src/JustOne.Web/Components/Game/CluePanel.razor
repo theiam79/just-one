@@ -2,15 +2,15 @@
     @if (View.IAmGuesser)
     {
         <h2>Clues are being written…</h2>
-        <p class="waiting">Look away from any screen sharing! Your friends are writing one-word clues for you.</p>
+        <p class="waiting">Look away from any screen sharing! Your friends are writing clues for you.</p>
     }
     else if (View.IAmExpectedWriter)
     {
         <h2>The mystery word is</h2>
         <div class="mystery-word">@View.MysteryWord</div>
-        <p>Write <strong>one</strong> clue word to help @View.GuesserName. Identical clues cancel each other out!</p>
+        <p>Write <strong>one</strong> clue to help @View.GuesserName — a single word, or a proper noun like a name or place. Identical clues cancel each other out!</p>
         <form class="clue-form" @onsubmit="SubmitClue">
-            <input maxlength="@ClueNormalizer.MaxWordLength" placeholder="your one-word clue" @bind="_clue" @bind:event="oninput" />
+            <input maxlength="@ClueNormalizer.MaxClueLength" placeholder="your clue" @bind="_clue" @bind:event="oninput" />
             <button class="btn primary" type="submit">@(View.MyClueText is null ? "Submit" : "Update")</button>
         </form>
         @if (View.MyClueText is not null)

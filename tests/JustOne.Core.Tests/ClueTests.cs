@@ -33,6 +33,77 @@ public class ClueTests
     }
 
     [Test]
+    public async Task Unsubmitting_removes_the_clue_and_keeps_the_phase_open()
+    {
+        var room = InClueWriting();
+        room.SubmitClue(Bob, "alpha");
+        room.UnsubmitClue(Bob);
+        await Assert.That(room.Round!.Clues.ContainsKey(Bob)).IsFalse();
+        await Assert.That(room.Phase).IsEqualTo(GamePhase.ClueWriting);
+    }
+
+    [Test]
+    public async Task Unsubmitting_prevents_being_cut_off_when_others_finish()
+    {
+        var room = InClueWriting();
+        room.SubmitClue(Bob, "alpha");
+        room.UnsubmitClue(Bob);          // Bob is reworking his clue
+        room.SubmitClue(Carol, "beta");  // everyone else finishes
+
+        await Assert.That(room.Phase).IsEqualTo(GamePhase.ClueWriting); // Bob is not cut off
+
+        room.SubmitClue(Bob, "gamma");   // Bob finishes his rework
+        await Assert.That(room.Phase).IsEqualTo(GamePhase.ClueReview);
+        await Assert.That(room.Round!.Clues[Bob].Text).IsEqualTo("gamma");
+    }
+
+    [Test]
+    public async Task Cannot_unsubmit_a_clue_you_never_submitted()
+    {
+        var room = InClueWriting();
+        var ex = ExpectRuleError(() => room.UnsubmitClue(Bob));
+        await Assert.That(ex.Message).Contains("take back");
+    }
+
+    [Test]
+    public async Task Guesser_cannot_unsubmit()
+    {
+        var room = InClueWriting();
+        var ex = ExpectRuleError(() => room.UnsubmitClue(Alice));
+        await Assert.That(ex.Message).Contains("not writing");
+    }
+
+    [Test]
+    public async Task Cannot_unsubmit_after_clue_writing_is_over()
+    {
+        var room = InClueReview(); // both clues in, phase advanced to ClueReview
+        ExpectRuleError(() => room.UnsubmitClue(Bob));
+        await Assert.That(room.Phase).IsEqualTo(GamePhase.ClueReview);
+    }
+
+    [Test]
+    public async Task Host_can_skip_a_writer_who_unsubmitted()
+    {
+        var room = InClueWriting();
+        room.SubmitClue(Bob, "alpha");
+        room.UnsubmitClue(Bob);
+        room.SubmitClue(Carol, "beta");
+        room.SkipPlayerClue(Alice, Bob); // host unblocks the reworking player
+        await Assert.That(room.Phase).IsEqualTo(GamePhase.ClueReview);
+    }
+
+    [Test]
+    public async Task Leaving_after_unsubmit_still_finishes_the_round()
+    {
+        var room = InClueWriting();
+        room.SubmitClue(Bob, "alpha");
+        room.UnsubmitClue(Bob);
+        room.SubmitClue(Carol, "beta");
+        room.Leave(Bob); // Bob vanishes mid-rework; the round must not get stuck
+        await Assert.That(room.Phase).IsEqualTo(GamePhase.ClueReview);
+    }
+
+    [Test]
     public async Task Multi_word_clue_is_accepted_and_stored_cleaned()
     {
         var room = InClueWriting();

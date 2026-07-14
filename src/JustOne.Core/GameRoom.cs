@@ -240,6 +240,26 @@ public sealed class GameRoom
         TryFinishClueWriting();
     }
 
+    /// <summary>
+    /// Takes back the caller's already-submitted clue so they can rework it without being
+    /// cut off when everyone else finishes. Only valid while clues are still being written;
+    /// deliberately does not advance the phase (removing a clue can only make the round less
+    /// complete), so the writing phase stays open until they submit again or are skipped.
+    /// </summary>
+    public void UnsubmitClue(Guid callerId)
+    {
+        RequirePhase(GamePhase.ClueWriting);
+        if (!Round!.ExpectedWriters.Contains(callerId))
+        {
+            throw new GameRuleException("You're not writing a clue this round.");
+        }
+
+        if (!Round.Clues.Remove(callerId))
+        {
+            throw new GameRuleException("You haven't submitted a clue to take back.");
+        }
+    }
+
     public void SkipPlayerClue(Guid callerId, Guid targetId)
     {
         RequirePhase(GamePhase.ClueWriting);

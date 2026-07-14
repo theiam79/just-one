@@ -4,18 +4,25 @@ using System.Text;
 namespace JustOne.Core;
 
 /// <summary>
-/// Canonicalizes words for duplicate detection and guess matching:
-/// trim, strip diacritics, lowercase, strip leading/trailing punctuation.
-/// Internal hyphens/apostrophes are kept ("ice-cream" stays distinct from "icecream";
-/// near-duplicates are handled by the players' manual cancellation).
+/// Canonicalizes clues for duplicate detection and guess matching:
+/// trim, collapse internal whitespace, strip diacritics, lowercase, strip
+/// leading/trailing punctuation.
+/// Multi-word clues (e.g. proper nouns like "New York") are allowed; the group
+/// polices borderline clues via manual cancellation during review.
+/// Internal hyphens/apostrophes are kept ("ice-cream" stays distinct from "icecream").
 /// </summary>
 public static class ClueNormalizer
 {
-    public const int MaxWordLength = 30;
+    public const int MaxClueLength = 30;
+    public const int MaxClueWords = 5;
+
+    /// <summary>Trims and collapses runs of internal whitespace to single spaces.</summary>
+    public static string Clean(string input) =>
+        string.Join(' ', input.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     public static string Normalize(string input)
     {
-        var formD = input.Trim().Normalize(NormalizationForm.FormD);
+        var formD = Clean(input).Normalize(NormalizationForm.FormD);
         var sb = new StringBuilder(formD.Length);
         foreach (var c in formD)
         {
@@ -42,25 +49,26 @@ public static class ClueNormalizer
         return s[start..end];
     }
 
-    /// <summary>Returns a player-facing error message, or null if the word is acceptable.</summary>
+    /// <summary>Returns a player-facing error message, or null if the clue is acceptable.</summary>
     public static string? ValidateWord(string word)
     {
         if (string.IsNullOrWhiteSpace(word))
         {
-            return "Enter a word first.";
+            return "Enter a clue first.";
         }
 
-        var trimmed = word.Trim();
-        if (trimmed.Any(char.IsWhiteSpace))
+        var cleaned = Clean(word);
+        if (cleaned.Length > MaxClueLength)
         {
-            return "It has to be a single word.";
+            return $"That's too long ({MaxClueLength} characters max).";
         }
 
-        if (trimmed.Length > MaxWordLength)
+        var wordCount = cleaned.Count(c => c == ' ') + 1;
+        if (wordCount > MaxClueWords)
         {
-            return $"That's too long ({MaxWordLength} characters max).";
+            return $"That's too many words ({MaxClueWords} max).";
         }
 
-        return Normalize(trimmed).Length == 0 ? "That word doesn't contain any letters." : null;
+        return Normalize(cleaned).Any(char.IsLetterOrDigit) ? null : "That clue doesn't contain any letters.";
     }
 }

@@ -6,6 +6,7 @@
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="bunit" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
   <ItemGroup>

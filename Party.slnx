@@ -2,11 +2,13 @@
   <Folder Name="/src/">
     <Project Path="src/Party.AppHost/Party.AppHost.csproj" />
     <Project Path="src/Party.Core/Party.Core.csproj" />
+    <Project Path="src/Party.Flip7/Party.Flip7.csproj" />
     <Project Path="src/Party.JustOne/Party.JustOne.csproj" />
     <Project Path="src/Party.ServiceDefaults/Party.ServiceDefaults.csproj" />
     <Project Path="src/Party.Web/Party.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Party.Flip7.Tests/Party.Flip7.Tests.csproj" />
     <Project Path="tests/Party.JustOne.Tests/Party.JustOne.Tests.csproj" />
   </Folder>
 </Solution>

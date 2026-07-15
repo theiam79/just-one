@@ -305,3 +305,71 @@ button.clue-card:disabled { cursor: default; }
   .phase-card { padding: 1.1rem; }
   .mystery-word, .final-score { font-size: 2rem; }
 }
+
+/* ---- Game picker ---- */
+
+.game-picker { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.game-choice {
+  display: flex; flex-direction: column; gap: 0.3rem; text-align: left;
+  background: var(--surface-2); border: 1px solid #333a52; border-radius: var(--radius);
+  padding: 1rem; color: var(--text); cursor: pointer; font: inherit;
+}
+.game-choice:hover { border-color: var(--accent); }
+.game-name { font-size: 1.25rem; font-weight: 700; }
+.game-tagline { color: var(--accent); font-size: 0.85rem; }
+.game-blurb { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.5rem; }
+.game-choice .btn { align-self: flex-start; pointer-events: none; }
+
+/* ---- Flip 7 ---- */
+
+/* Each game gets its own accent; everything else is shared. */
+.room.flip7 { --accent: #35c3f3; --accent-text: #04222e; }
+
+.f7actions { display: flex; gap: 0.75rem; }
+.f7actions .btn { flex: 1; }
+
+.f7targets { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.f7played { display: flex; align-items: center; gap: 0.6rem; }
+
+.f7table { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.75rem; }
+
+.f7seat {
+  flex: 1 1 15rem; background: var(--surface); border: 1px solid #2a3047;
+  border-radius: var(--radius); padding: 0.6rem 0.75rem;
+}
+.f7seat.me { border-color: var(--accent); }
+.f7seat.turn { box-shadow: 0 0 0 2px var(--accent); }
+.f7seat.away { opacity: 0.6; }
+.f7seat.busted { opacity: 0.75; }
+
+.f7seat-head { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.f7seat-foot { min-height: 1rem; }
+
+.f7total { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+.f7round { color: var(--muted); font-size: 0.75rem; }
+.f7round.bad { color: var(--bad); }
+.f7empty { color: var(--muted); font-size: 0.8rem; font-style: italic; }
+
+.f7line { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.5rem 0 0.35rem; min-height: 2.1rem; }
+
+.f7card {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.9rem; height: 2.1rem; padding: 0 0.35rem;
+  border-radius: 6px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: var(--surface-2); border: 1px solid #3a4260;
+}
+.f7card.num { background: #eef2ff; color: #1a1f36; border-color: #c9d2f0; }
+.f7card.mod { background: var(--ok); color: #04220f; border-color: var(--ok); }
+.f7card.act { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.f7card.faded { opacity: 0.45; }
+
+.f7standings { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.75rem 0; }
+.f7standing {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.35rem 0.6rem; border-radius: 8px; background: var(--surface-2);
+}
+.f7standing.me { outline: 1px solid var(--accent); }
+
+.badge.bad { background: var(--bad); color: #fff; }

@@ -1,0 +1,41 @@
+@using Party.Flip7
+
+<div class="phase-card">
+    <h2>Lobby</h2>
+    <p>Share the room code (or the copied link) with everyone on your call.</p>
+
+    <p class="hint">
+        Hit for another card, or stay and bank what you have. Two of the same number and you
+        bust with nothing. Seven different numbers is a <strong>Flip 7</strong>: +15, and the
+        round stops there for everyone. First to @Flip7Rules.WinningScore wins.
+    </p>
+
+    @if (View.HasHostPowers)
+    {
+        <button class="btn primary big" disabled="@(Seated < Flip7Room.MinPlayers)"
+                @onclick="() => Act(r => r.StartGame(View.MyId))">
+            Start game
+        </button>
+        @if (Seated < Flip7Room.MinPlayers)
+        {
+            <p class="hint">You need at least @Flip7Room.MinPlayers players (@(Flip7Room.MinPlayers - Seated) more to go).</p>
+        }
+        else
+        {
+            <p class="hint">Playing with @Decks @(Decks == 1 ? "deck" : "decks") — a second gets shuffled in past @Flip7Deck.PlayersPerDeck players.</p>
+        }
+    }
+    else
+    {
+        <p class="hint">Waiting for @(View.HostName ?? "the host") to start the game…</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required Flip7View View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<Flip7Room>> Act { get; set; }
+
+    private int Seated => View.Players.Count(p => !p.IsSpectator);
+
+    private int Decks => Flip7Deck.DecksFor(Seated);
+}

@@ -1,0 +1,41 @@
+@using Party.Flip7
+@* Both games have a Card; this file means Flip 7's. *@
+@using Card = Party.Flip7.Card
+
+<span class="f7card @Kind @(Faded ? "faded" : "")" title="@Title">@Label</span>
+
+@code {
+    [Parameter, EditorRequired] public required Card Card { get; set; }
+
+    /// <summary>Busted lines are turned face down at the table; here they just dim.</summary>
+    [Parameter] public bool Faded { get; set; }
+
+    private string Kind => Card switch
+    {
+        NumberCard => "num",
+        ModifierCard => "mod",
+        _ => "act",
+    };
+
+    private string Label => Card switch
+    {
+        NumberCard n => n.Value.ToString(),
+        ModifierCard { Kind: ModifierKind.Times2 } => "×2",
+        ModifierCard m => $"+{m.PlusValue}",
+        ActionCard { Kind: ActionKind.Freeze } => "❄",
+        ActionCard { Kind: ActionKind.FlipThree } => "⤬3",
+        ActionCard { Kind: ActionKind.SecondChance } => "♻",
+        _ => "?",
+    };
+
+    private string Title => Card switch
+    {
+        NumberCard n => $"{n.Value}",
+        ModifierCard { Kind: ModifierKind.Times2 } => "×2 — doubles the sum of your number cards",
+        ModifierCard m => $"+{m.PlusValue} points",
+        ActionCard { Kind: ActionKind.Freeze } => "Freeze — banks their points and ends their round",
+        ActionCard { Kind: ActionKind.FlipThree } => "Flip Three — they take the next three cards",
+        ActionCard { Kind: ActionKind.SecondChance } => "Second Chance — cancels one bust",
+        _ => "",
+    };
+}

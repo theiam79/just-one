@@ -154,4 +154,15 @@ public class RoomManagerTests
             await Assert.That(handle.Game).IsEqualTo(game.Type);
         }
     }
+
+    [Test]
+    public async Task Every_game_gets_a_handle_of_the_matching_type()
+    {
+        // RoomPage dispatches on the handle's type, so a room must be built with the one that
+        // fits its game or it would render the "can't open this room" fallback.
+        var manager = new RoomManager();
+
+        await Assert.That(manager.CreateRoom(GameType.JustOne)).IsTypeOf<RoomHandle<GameRoom>>();
+        await Assert.That(manager.CreateRoom(GameType.Flip7)).IsTypeOf<RoomHandle<Flip7Room>>();
+    }
 }

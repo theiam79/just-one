@@ -4,22 +4,33 @@
 @inject NavigationManager Nav
 
 <div class="home">
-    <h1 class="logo">Just <span class="accent">One</span></h1>
-    <p class="tagline">The cooperative word game — play together while you're on a call.</p>
+    <h1 class="logo">Party <span class="accent">Games</span></h1>
+    <p class="tagline">Play together while you're on a call.</p>
 
     <div class="home-card">
         <label for="name">Your name</label>
-        <input id="name" maxlength="20" placeholder="e.g. Alex" @bind="_name" @bind:event="oninput" />
+        <input id="name" maxlength="@MaxNameLength" placeholder="e.g. Alex" @bind="_name" @bind:event="oninput" />
 
         @if (_error is not null)
         {
             <div class="banner error">@_error</div>
         }
 
-        <button class="btn primary big" @onclick="CreateRoom">Create a room</button>
+        <div class="game-picker">
+            @foreach (var game in GameInfo.All)
+            {
+                <button class="game-choice" @onclick="() => CreateRoom(game.Type)">
+                    <span class="game-name">@game.Name</span>
+                    <span class="game-tagline">@game.Tagline</span>
+                    <span class="game-blurb">@game.Blurb</span>
+                    <span class="btn primary">Create a room</span>
+                </button>
+            }
+        </div>
 
         <div class="divider"><span>or join a friend's room</span></div>
 
+        @* No game to pick here on purpose: a code already knows which game it is. *@
         <form class="join-row" @onsubmit="JoinRoom">
             <input class="code-input" maxlength="@RoomCode.Length" placeholder="CODE" @bind="_code" @bind:event="oninput" />
             <button class="btn" type="submit">Join</button>
@@ -30,6 +41,10 @@
 </div>
 
 @code {
+    // Any game's room may be created from here, so cap at the strictest.
+    private static readonly int MaxNameLength =
+        Math.Min(GameRoom.MaxNameLength, Party.Flip7.Flip7Room.MaxNameLength);
+
     private string _name = "";
     private string _code = "";
     private string? _error;
@@ -45,14 +60,14 @@
         StateHasChanged();
     }
 
-    private async Task CreateRoom()
+    private async Task CreateRoom(GameType game)
     {
         if (!await ValidateName())
         {
             return;
         }
 
-        var handle = Rooms.CreateRoom(GameType.JustOne);
+        var handle = Rooms.CreateRoom(game);
         Nav.NavigateTo($"/room/{handle.Code}");
     }
 

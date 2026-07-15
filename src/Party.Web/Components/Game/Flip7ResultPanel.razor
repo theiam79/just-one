@@ -1,0 +1,68 @@
+@using Party.Flip7
+
+<div class="phase-card">
+    @if (View.Phase is Flip7Phase.GameOver)
+    {
+        <h2>@(Winner?.Name ?? "Nobody") wins on @(Winner?.Total)</h2>
+    }
+    else if (View.Flip7PlayerId is { } id)
+    {
+        <h2>@(Name(id)) hit a Flip 7 — round over</h2>
+        <p class="hint">Seven different numbers, +@Flip7Rules.Flip7Bonus, and everyone else banks what they had.</p>
+    }
+    else
+    {
+        <h2>Round @View.RoundNumber over</h2>
+    }
+
+    <div class="f7standings">
+        @foreach (var p in View.Standings.Where(p => !p.IsSpectator))
+        {
+            <div class="f7standing @(p.Id == View.MyId ? "me" : "")">
+                <span class="player-name">@p.Name</span>
+                <span class="f7total">@p.Total</span>
+                @if (p.Total >= Flip7Rules.WinningScore)
+                {
+                    <span class="badge ok" title="Past the target">@Flip7Rules.WinningScore+</span>
+                }
+            </div>
+        }
+    </div>
+
+    @if (View.Phase is Flip7Phase.GameOver)
+    {
+        @if (View.HasHostPowers)
+        {
+            <button class="btn primary big" @onclick="() => Act(r => r.PlayAgain(View.MyId))">Play again</button>
+        }
+        else
+        {
+            <p class="hint">Waiting for @(View.HostName ?? "the host") to start another game…</p>
+        }
+    }
+    else if (View.HasHostPowers)
+    {
+        <button class="btn primary big" @onclick="() => Act(r => r.NextRound(View.MyId))">
+            @(View.WinnerId is not null ? "See the result" : "Next round")
+        </button>
+        @if (View.WinnerId is null && View.Standings.Any(p => p.Total >= Flip7Rules.WinningScore))
+        {
+            <p class="hint">
+                Two players are level past @Flip7Rules.WinningScore, so everyone plays another round.
+            </p>
+        }
+    }
+    else
+    {
+        <p class="hint">Waiting for @(View.HostName ?? "the host") to deal the next round…</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required Flip7View View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<Flip7Room>> Act { get; set; }
+
+    private Flip7PlayerView? Winner => View.Players.FirstOrDefault(p => p.Id == View.WinnerId);
+
+    private string Name(Guid id) => View.Players.FirstOrDefault(p => p.Id == id)?.Name ?? "Someone";
+}

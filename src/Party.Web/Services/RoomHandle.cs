@@ -1,50 +1,46 @@
 using Party.Core;
-using Party.JustOne;
 
 namespace Party.Web.Services;
 
 /// <summary>
-/// Serializes all access to one <see cref="GameRoom"/> and fans out change notifications
-/// to every subscribed circuit. Events are raised outside the lock; handlers must only
-/// schedule a re-render (never call back into <see cref="Mutate"/> synchronously).
+/// Serializes all access to one room and fans out change notifications to every subscribed
+/// circuit.
 /// </summary>
-public sealed class RoomHandle(GameRoom room)
+/// <remarks>
+/// Mutations run under the lock and <see cref="Changed"/> is raised outside it, so a handler
+/// can't block the room while it works. Handlers should only schedule a re-render: the lock is
+/// re-entrant, so one that calls straight back into
+/// <see cref="RoomHandle{TRoom}.Mutate"/> won't deadlock — it will quietly recurse instead,
+/// raising <see cref="Changed"/> again on the way.
+/// </remarks>
+/// <remarks>
+/// The non-generic half is everything that doesn't care which game is being played — the code,
+/// the idle clock, closing, and the change event. That's what lets one dictionary of rooms and
+/// the janitor sweeping it stay oblivious to the game inside.
+/// </remarks>
+public abstract class RoomHandle
 {
-    private readonly object _gate = new();
+    // Only the generic subclass below is a room; nothing else should inherit this.
+    private protected RoomHandle()
+    {
+    }
 
-    public string Code => room.Code;
-    public DateTimeOffset LastActivity { get; private set; } = DateTimeOffset.UtcNow;
+    private protected readonly object Gate = new();
+
+    public abstract string Code { get; }
+
+    /// <summary>Which game this room is playing, so the page knows what to render.</summary>
+    public abstract GameType Game { get; }
+
+    public DateTimeOffset LastActivity { get; private protected set; } = DateTimeOffset.UtcNow;
+
     public bool IsClosed { get; private set; }
 
     public event Action? Changed;
 
-    public void Mutate(Action<GameRoom> action)
-    {
-        lock (_gate)
-        {
-            if (IsClosed)
-            {
-                throw new GameRuleException("This room has been closed for inactivity.");
-            }
-
-            action(room);
-            LastActivity = DateTimeOffset.UtcNow;
-        }
-
-        RaiseChanged();
-    }
-
-    public T Read<T>(Func<GameRoom, T> selector)
-    {
-        lock (_gate)
-        {
-            return selector(room);
-        }
-    }
-
     public void Close()
     {
-        lock (_gate)
+        lock (Gate)
         {
             IsClosed = true;
         }
@@ -52,7 +48,15 @@ public sealed class RoomHandle(GameRoom room)
         RaiseChanged();
     }
 
-    private void RaiseChanged()
+    private protected void ThrowIfClosed()
+    {
+        if (IsClosed)
+        {
+            throw new GameRuleException("This room has been closed for inactivity.");
+        }
+    }
+
+    private protected void RaiseChanged()
     {
         foreach (var handler in Changed?.GetInvocationList() ?? [])
         {
@@ -64,6 +68,34 @@ public sealed class RoomHandle(GameRoom room)
             {
                 // One dead circuit must not break the fan-out to everyone else.
             }
+        }
+    }
+}
+
+/// <summary>A room handle that knows its game's state machine.</summary>
+public sealed class RoomHandle<TRoom>(string code, GameType game, TRoom room) : RoomHandle
+{
+    public override string Code => code;
+
+    public override GameType Game => game;
+
+    public void Mutate(Action<TRoom> action)
+    {
+        lock (Gate)
+        {
+            ThrowIfClosed();
+            action(room);
+            LastActivity = DateTimeOffset.UtcNow;
+        }
+
+        RaiseChanged();
+    }
+
+    public T Read<T>(Func<TRoom, T> selector)
+    {
+        lock (Gate)
+        {
+            return selector(room);
         }
     }
 }

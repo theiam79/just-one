@@ -1,5 +1,5 @@
 {
   "appHost": {
-    "path": "src/JustOne.AppHost/JustOne.AppHost.csproj"
+    "path": "src/Party.AppHost/Party.AppHost.csproj"
   }
 }

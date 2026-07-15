@@ -200,6 +200,10 @@ input:focus { outline: 2px solid var(--accent); border-color: transparent; }
 .clue-form { display: flex; gap: 0.5rem; margin: 0.5rem 0; }
 .clue-form input { flex: 1; }
 
+/* More than one clue owed: stack the boxes so they don't get squeezed. */
+.clue-form.stacked { flex-direction: column; }
+.clue-form.stacked .btn { align-self: flex-end; }
+
 .clue-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));

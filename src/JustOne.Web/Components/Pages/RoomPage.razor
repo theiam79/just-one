@@ -215,6 +215,11 @@ else
         }
 
         RefreshView();
+
+        // Act runs from a child panel's event handler, so Blazor only re-renders that child.
+        // A rejected move raises no Changed event either, so without this the banner never
+        // appears and the move just seems to do nothing.
+        StateHasChanged();
     }
 
     private void OnRoomChanged()

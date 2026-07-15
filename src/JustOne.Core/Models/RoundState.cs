@@ -14,7 +14,14 @@ public sealed class RoundState
     /// <summary>Expected writers whose clue was skipped (e.g. they disconnected).</summary>
     public HashSet<Guid> SkippedWriters { get; } = [];
 
-    public Dictionary<Guid, Clue> Clues { get; } = [];
+    /// <summary>
+    /// How many clues each writer owes this round; fixed when the number is picked, so the
+    /// rule can't change under someone mid-round. Two when playing the small-group variant.
+    /// </summary>
+    public int CluesPerWriter { get; set; } = 1;
+
+    /// <summary>Each writer's clues, keyed by author. A writer submits all of theirs at once.</summary>
+    public Dictionary<Guid, List<Clue>> Clues { get; } = [];
     public string? Guess { get; set; }
     public RoundOutcome? Outcome { get; set; }
 

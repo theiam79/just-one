@@ -175,7 +175,7 @@ public class TimerTests
 
         // And a writer who was mid-thought can still submit after time is up.
         room.SubmitClue(Bob, "alpha");
-        await Assert.That(room.Round.Clues[Bob].Text).IsEqualTo("alpha");
+        await Assert.That(room.Round.Clues.Only(Bob).Text).IsEqualTo("alpha");
     }
 
     [Test]

@@ -6,7 +6,9 @@ public enum ClueStatus { NotApplicable, Writing, Done, Skipped }
 
 public sealed record PlayerView(Guid Id, string Name, bool IsHost, bool IsConnected, bool IsSpectator, bool IsBenched, bool IsGuesser, ClueStatus ClueStatus);
 
-public sealed record ClueView(Guid AuthorId, string AuthorName, string Text, bool AutoCancelled, bool ManuallyCancelled)
+/// <summary><paramref name="Index"/> is the clue's position among its author's clues, which is
+/// what identifies it for cancellation when a writer has more than one.</summary>
+public sealed record ClueView(Guid AuthorId, string AuthorName, int Index, string Text, bool AutoCancelled, bool ManuallyCancelled)
 {
     public bool Cancelled => AutoCancelled || ManuallyCancelled;
 }
@@ -33,7 +35,11 @@ public sealed record RoomView
     public required int RoundNumber { get; init; }
     public required string? GuesserName { get; init; }
     public required string? MysteryWord { get; init; }
-    public required string? MyClueText { get; init; }
+    /// <summary>The caller's submitted clues this round; empty until they submit.</summary>
+    public required IReadOnlyList<string> MyClueTexts { get; init; }
+
+    /// <summary>How many clues the caller owes this round — two under the small-group variant.</summary>
+    public required int CluesPerWriter { get; init; }
     public required IReadOnlyList<ClueView> Clues { get; init; }
     public required IReadOnlyList<PlayerView> PendingWriters { get; init; }
     public required string? Guess { get; init; }
@@ -46,6 +52,9 @@ public sealed record RoomView
 
     /// <summary>The configured countdown length, for the lobby setting and the start button.</summary>
     public required int TimerSeconds { get; init; }
+
+    /// <summary>The configured small-group variant setting, for the lobby.</summary>
+    public required TwoCluesMode TwoCluesMode { get; init; }
 
     /// <summary>A countdown can be put on the phase in progress.</summary>
     public bool CanUseTimer => Phase is (GamePhase.ClueWriting or GamePhase.Guessing) && !IAmSpectator;
@@ -89,7 +98,8 @@ public sealed record RoomView
             RoundNumber = round?.RoundNumber ?? 0,
             GuesserName = round is null ? null : names.GetValueOrDefault(round.GuesserId, "?"),
             MysteryWord = round?.MysteryWord is { } word && (!iAmGuesser || room.Phase is GamePhase.RoundResult or GamePhase.GameOver) ? word : null,
-            MyClueText = round?.Clues.GetValueOrDefault(viewerId)?.Text,
+            MyClueTexts = round?.Clues.GetValueOrDefault(viewerId)?.Select(c => c.Text).ToList() ?? [],
+            CluesPerWriter = round?.CluesPerWriter ?? 1,
             Clues = CluesFor(room, round, iAmGuesser, names),
             PendingWriters = round is null
                 ? []
@@ -101,6 +111,7 @@ public sealed record RoomView
             // A countdown started for an earlier phase stops showing once the round moves on.
             TimerDeadline = round is not null && round.TimerPhase == room.Phase ? round.TimerDeadline : null,
             TimerSeconds = room.TimerSeconds,
+            TwoCluesMode = room.TwoCluesMode,
         };
     }
 
@@ -127,8 +138,10 @@ public sealed record RoomView
         }
 
         var all = round.Clues.Values
-            .Select(c => new ClueView(c.AuthorId, names.GetValueOrDefault(c.AuthorId, "?"), c.Text, c.AutoCancelled, c.ManuallyCancelled))
+            .SelectMany(clues => clues.Select((c, i) =>
+                new ClueView(c.AuthorId, names.GetValueOrDefault(c.AuthorId, "?"), i, c.Text, c.AutoCancelled, c.ManuallyCancelled)))
             .OrderBy(c => c.AuthorName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(c => c.Index)
             .ToList();
 
         if (iAmGuesser)

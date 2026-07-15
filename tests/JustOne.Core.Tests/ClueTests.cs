@@ -28,7 +28,7 @@ public class ClueTests
         var room = InClueWriting();
         room.SubmitClue(Bob, "first");
         room.SubmitClue(Bob, "second");
-        await Assert.That(room.Round!.Clues[Bob].Text).IsEqualTo("second");
+        await Assert.That(room.Round!.Clues.Only(Bob).Text).IsEqualTo("second");
         await Assert.That(room.Phase).IsEqualTo(GamePhase.ClueWriting);
     }
 
@@ -54,7 +54,7 @@ public class ClueTests
 
         room.SubmitClue(Bob, "gamma");   // Bob finishes his rework
         await Assert.That(room.Phase).IsEqualTo(GamePhase.ClueReview);
-        await Assert.That(room.Round!.Clues[Bob].Text).IsEqualTo("gamma");
+        await Assert.That(room.Round!.Clues.Only(Bob).Text).IsEqualTo("gamma");
     }
 
     [Test]
@@ -108,7 +108,7 @@ public class ClueTests
     {
         var room = InClueWriting();
         room.SubmitClue(Bob, "  New   York ");
-        await Assert.That(room.Round!.Clues[Bob].Text).IsEqualTo("New York");
+        await Assert.That(room.Round!.Clues.Only(Bob).Text).IsEqualTo("New York");
         await Assert.That(room.Phase).IsEqualTo(GamePhase.ClueWriting);
     }
 
@@ -116,8 +116,8 @@ public class ClueTests
     public async Task Multi_word_duplicates_auto_cancel_across_whitespace_and_case()
     {
         var room = InClueReview(bobClue: "New York", carolClue: "new  york");
-        await Assert.That(room.Round!.Clues[Bob].AutoCancelled).IsTrue();
-        await Assert.That(room.Round.Clues[Carol].AutoCancelled).IsTrue();
+        await Assert.That(room.Round!.Clues.Only(Bob).AutoCancelled).IsTrue();
+        await Assert.That(room.Round.Clues.Only(Carol).AutoCancelled).IsTrue();
     }
 
     [Test]
@@ -153,16 +153,16 @@ public class ClueTests
     public async Task Identical_clues_are_auto_cancelled_case_and_accent_insensitively()
     {
         var room = InClueReview(bobClue: "Café", carolClue: "cafe");
-        await Assert.That(room.Round!.Clues[Bob].AutoCancelled).IsTrue();
-        await Assert.That(room.Round.Clues[Carol].AutoCancelled).IsTrue();
-        await Assert.That(room.Round.Clues.Values.Count(c => c.Visible)).IsEqualTo(0);
+        await Assert.That(room.Round!.Clues.Only(Bob).AutoCancelled).IsTrue();
+        await Assert.That(room.Round.Clues.Only(Carol).AutoCancelled).IsTrue();
+        await Assert.That(room.Round.Clues.All().Count(c => c.Visible)).IsEqualTo(0);
     }
 
     [Test]
     public async Task Distinct_clues_survive_auto_cancellation()
     {
         var room = InClueReview(bobClue: "alpha", carolClue: "beta");
-        await Assert.That(room.Round!.Clues.Values.Count(c => c.Visible)).IsEqualTo(2);
+        await Assert.That(room.Round!.Clues.All().Count(c => c.Visible)).IsEqualTo(2);
     }
 
     [Test]
@@ -170,9 +170,9 @@ public class ClueTests
     {
         var room = InClueReview();
         room.ToggleClueCancellation(Carol, Bob);
-        await Assert.That(room.Round!.Clues[Bob].Visible).IsFalse();
+        await Assert.That(room.Round!.Clues.Only(Bob).Visible).IsFalse();
         room.ToggleClueCancellation(Carol, Bob);
-        await Assert.That(room.Round.Clues[Bob].Visible).IsTrue();
+        await Assert.That(room.Round.Clues.Only(Bob).Visible).IsTrue();
     }
 
     [Test]

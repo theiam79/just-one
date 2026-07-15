@@ -9,16 +9,29 @@
     {
         <h2>The mystery word is</h2>
         <div class="mystery-word">@View.MysteryWord</div>
-        <p>Write <strong>one</strong> clue to help @View.GuesserName — a single word, or a proper noun like a name or place. Identical clues cancel each other out!</p>
-        <form class="clue-form" @onsubmit="SubmitClue">
-            <input maxlength="@ClueNormalizer.MaxClueLength" placeholder="your clue" @bind="_clue" @bind:event="oninput" />
-            <button class="btn primary" type="submit">@(View.MyClueText is null ? "Submit" : "Update")</button>
+        @if (View.CluesPerWriter > 1)
+        {
+            <p>Write <strong>@View.CluesPerWriter different</strong> clues to help @View.GuesserName — you're short-handed, so everyone writes extra. Identical clues cancel each other out!</p>
+        }
+        else
+        {
+            <p>Write <strong>one</strong> clue to help @View.GuesserName — a single word, or a proper noun like a name or place. Identical clues cancel each other out!</p>
+        }
+        <form class="clue-form @(View.CluesPerWriter > 1 ? "stacked" : "")" @onsubmit="Submit">
+            @for (var i = 0; i < _clues.Length; i++)
+            {
+                var index = i;
+                <input maxlength="@ClueNormalizer.MaxClueLength" placeholder="@Placeholder(index)"
+                       @bind="_clues[index]" @bind:event="oninput" />
+            }
+            <button class="btn primary" type="submit">@(View.MyClueTexts.Count == 0 ? "Submit" : "Update")</button>
         </form>
-        @if (View.MyClueText is not null)
+        @if (View.MyClueTexts.Count > 0)
         {
             <p class="hint">
-                Your clue is in: <strong>@View.MyClueText</strong>. You can change it until everyone's done, or
-                <button class="btn tiny ghost" type="button" @onclick="UnsubmitClue">take it back</button>
+                @(View.MyClueTexts.Count == 1 ? "Your clue is in" : "Your clues are in"):
+                <strong>@string.Join(", ", View.MyClueTexts)</strong>. You can change @(View.MyClueTexts.Count == 1 ? "it" : "them") until everyone's done, or
+                <button class="btn tiny ghost" type="button" @onclick="Unsubmit">take it back</button>
                 to keep editing without getting cut off.
             </p>
         }
@@ -40,19 +53,34 @@
     [Parameter, EditorRequired] public required RoomView View { get; set; }
     [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
 
-    private string _clue = "";
+    private string[] _clues = [];
 
-    private void SubmitClue()
+    protected override void OnParametersSet()
     {
-        var clue = _clue;
-        Act(g => g.SubmitClue(View.MyId, clue));
-        _clue = "";
+        // Keep a box per clue owed. Deliberately not cleared after submitting: the text stays
+        // put so you can tweak and Update, and a rejected submission doesn't wipe what you typed.
+        if (_clues.Length != View.CluesPerWriter)
+        {
+            _clues = [.. Enumerable.Range(0, View.CluesPerWriter).Select(i => View.MyClueTexts.ElementAtOrDefault(i) ?? "")];
+        }
     }
 
-    private void UnsubmitClue()
+    private string Placeholder(int index) =>
+        View.CluesPerWriter > 1 ? $"clue {index + 1}" : "your clue";
+
+    private void Submit()
     {
-        var previous = View.MyClueText;
+        var clues = _clues.ToArray();
+        Act(g => g.SubmitClues(View.MyId, clues));
+    }
+
+    private void Unsubmit()
+    {
+        var previous = View.MyClueTexts.ToArray();
         Act(g => g.UnsubmitClue(View.MyId));
-        _clue = previous ?? "";
+        for (var i = 0; i < _clues.Length && i < previous.Length; i++)
+        {
+            _clues[i] = previous[i];
+        }
     }
 }

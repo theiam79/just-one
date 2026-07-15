@@ -4,7 +4,7 @@ namespace JustOne.Web.Services;
 
 public enum ClueStatus { NotApplicable, Writing, Done, Skipped }
 
-public sealed record PlayerView(Guid Id, string Name, bool IsHost, bool IsConnected, bool IsSpectator, bool IsGuesser, ClueStatus ClueStatus);
+public sealed record PlayerView(Guid Id, string Name, bool IsHost, bool IsConnected, bool IsSpectator, bool IsBenched, bool IsGuesser, ClueStatus ClueStatus);
 
 public sealed record ClueView(Guid AuthorId, string AuthorName, string Text, bool AutoCancelled, bool ManuallyCancelled)
 {
@@ -58,6 +58,7 @@ public sealed record RoomView
                 p.IsHost,
                 p.IsConnected,
                 p.IsSpectator,
+                p.BenchedForInactivity && p.IsSpectator, // sitting out right now, not merely flagged
                 round is not null && room.Phase is not (GamePhase.Lobby or GamePhase.GameOver) && round.GuesserId == p.Id,
                 ClueStatusOf(room, round, p.Id)))
             .ToList();

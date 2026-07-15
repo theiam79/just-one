@@ -12,9 +12,18 @@
             {
                 <span class="badge" title="Guesser this round">🎯</span>
             }
-            @if (p.IsSpectator)
+            @if (p.IsBenched)
+            {
+                <span class="badge soft" title="Sitting out while away; back in when they reconnect">sitting out</span>
+            }
+            else if (p.IsSpectator)
             {
                 <span class="badge soft" title="Joins next game">watching</span>
+            }
+            else if (View.HasHostPowers && !p.IsConnected && p.Id != View.MyId)
+            {
+                <button class="btn tiny" title="Sit them out until they reconnect, instead of skipping them every round"
+                        @onclick="() => Act(g => g.BenchPlayer(View.MyId, p.Id))">sit out</button>
             }
             @switch (p.ClueStatus)
             {

@@ -125,21 +125,72 @@ public sealed class GameRoom
         }
     }
 
+    /// <summary>
+    /// Sits an away player out until they come back, so the host doesn't have to skip them
+    /// every single round: they stop being dealt guesser turns and stop being expected to
+    /// write clues. The decision is sticky — it lifts while they're actually connected and
+    /// re-arms if they drop again, so a flaky circuit doesn't quietly put them back in the
+    /// game — and clears entirely once a new game starts with them present.
+    /// </summary>
+    public void BenchPlayer(Guid callerId, Guid targetId)
+    {
+        RequireHostPowers(callerId);
+        var player = _players.FirstOrDefault(p => p.Id == targetId)
+            ?? throw new GameRuleException("That player isn't in this room.");
+
+        if (player.IsConnected)
+        {
+            throw new GameRuleException("You can only sit out a player who's away.");
+        }
+
+        if (player.IsSpectator)
+        {
+            throw new GameRuleException("They're already sitting out.");
+        }
+
+        player.IsSpectator = true;
+        player.BenchedForInactivity = true;
+
+        // Unblock the round in progress if it was still waiting on their clue.
+        if (Phase == GamePhase.ClueWriting && Round is not null
+            && Round.ExpectedWriters.Contains(targetId) && !Round.Clues.ContainsKey(targetId))
+        {
+            Round.SkippedWriters.Add(targetId);
+            TryFinishClueWriting();
+        }
+    }
+
     public void PlayerConnected(Guid id)
     {
         var player = _players.FirstOrDefault(p => p.Id == id);
-        if (player is not null)
+        if (player is null)
         {
-            player.ConnectionCount++;
+            return;
+        }
+
+        player.ConnectionCount++;
+        if (player.BenchedForInactivity)
+        {
+            // They're active again — back in from the next round. The bench decision itself
+            // is kept so a brief reconnect doesn't discard it; it re-arms below if they drop
+            // again, and ClearSpectators retires it once a new game starts with them here.
+            player.IsSpectator = false;
         }
     }
 
     public void PlayerDisconnected(Guid id)
     {
         var player = _players.FirstOrDefault(p => p.Id == id);
-        if (player is not null && player.ConnectionCount > 0)
+        if (player is null || player.ConnectionCount == 0)
         {
-            player.ConnectionCount--;
+            return;
+        }
+
+        player.ConnectionCount--;
+        if (player.BenchedForInactivity && !player.IsConnected)
+        {
+            // Away again, and the host already sat them out: don't make them re-do it.
+            player.IsSpectator = true;
         }
     }
 
@@ -149,15 +200,15 @@ public sealed class GameRoom
     {
         RequirePhase(GamePhase.Lobby);
         RequireHostPowers(callerId);
-        if (_players.Count < MinPlayers)
+
+        // Players benched while away sit the next game out, so they don't count towards
+        // the minimum — otherwise a "full" room could start a game nobody can actually play.
+        if (_players.Count(p => !StaysBenched(p)) < MinPlayers)
         {
             throw new GameRuleException($"Need at least {MinPlayers} players to start.");
         }
 
-        foreach (var p in _players)
-        {
-            p.IsSpectator = false;
-        }
+        ClearSpectators();
 
         BuildDeck();
         Score = 0;
@@ -167,22 +218,16 @@ public sealed class GameRoom
         // at the host. The very first game of a room starts with the host (seat 0);
         // each subsequent game resumes from whoever guessed last — looked up by
         // identity so it stays correct even if seats shifted when players left the
-        // lobby between games — and advances to the next eligible seat.
+        // lobby between games. Either way we rotate onto the seat rather than assigning
+        // it directly, so a benched or absent player is never dealt round 1.
+        var fromSeat = _players.Count - 1; // rotating from the last seat lands on seat 0
         if (_lastGuesserId is { } lastId)
         {
             var lastSeat = _players.FindIndex(p => p.Id == lastId);
-            if (lastSeat < 0)
-            {
-                lastSeat = Math.Min(_guesserIndex, _players.Count - 1);
-            }
-
-            RotateGuesserFrom(lastSeat);
-        }
-        else
-        {
-            _guesserIndex = 0;
+            fromSeat = lastSeat < 0 ? Math.Min(_guesserIndex, _players.Count - 1) : lastSeat;
         }
 
+        RotateGuesserFrom(fromSeat);
         StartRound(1);
     }
 
@@ -369,13 +414,32 @@ public sealed class GameRoom
         Score = 0;
         CompletedRounds.Clear();
         _deck.Clear();
-        foreach (var p in _players)
-        {
-            p.IsSpectator = false;
-        }
+        ClearSpectators();
     }
 
     // ---- Internals ----
+
+    /// <summary>Whether a new game would leave this player sitting out: benched, and still away.</summary>
+    private static bool StaysBenched(Player p) => p.BenchedForInactivity && !p.IsConnected;
+
+    /// <summary>
+    /// Brings spectators in as players for a new game — except anyone benched for inactivity
+    /// who is still away, who stays out until they actually come back. Players who are back
+    /// have their bench retired, so the next game is a clean slate for them.
+    /// </summary>
+    private void ClearSpectators()
+    {
+        foreach (var p in _players)
+        {
+            if (StaysBenched(p))
+            {
+                continue;
+            }
+
+            p.IsSpectator = false;
+            p.BenchedForInactivity = false;
+        }
+    }
 
     private void BuildDeck()
     {

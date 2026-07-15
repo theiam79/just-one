@@ -191,25 +191,24 @@ public class RoomHandleTests
     [Test]
     public async Task A_slow_mutation_holds_everyone_else_off()
     {
+        // Timed rather than racing the two tasks' completion flags: a second circuit's move must
+        // wait out the first, so it cannot return before the slow one has finished sleeping.
         var handle = NewHandle();
         var inside = new ManualResetEventSlim();
-        var overlapped = false;
 
         var slow = Task.Run(() => handle.Mutate(_ =>
         {
             inside.Set();
-            Thread.Sleep(200);
+            Thread.Sleep(300);
         }));
 
         inside.Wait();
-        var other = Task.Run(() =>
-        {
-            handle.Mutate(_ => { });
-            overlapped = !slow.IsCompleted;
-        });
+        var waited = System.Diagnostics.Stopwatch.StartNew();
+        await Task.Run(() => handle.Mutate(_ => { }));
+        waited.Stop();
 
-        await Task.WhenAll(slow, other);
-        await Assert.That(overlapped).IsFalse();
+        await slow;
+        await Assert.That(waited.ElapsedMilliseconds).IsGreaterThan(150);
     }
 
     [Test]

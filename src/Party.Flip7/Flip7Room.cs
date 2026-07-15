@@ -12,7 +12,7 @@ namespace Party.Flip7;
 /// after every input it advances — dealing, flipping, resolving action cards — until it genuinely
 /// needs a human again, or the round ends.
 /// </remarks>
-public sealed class Flip7Room
+public sealed class Flip7Room : RoomBase
 {
     public const int MinPlayers = 3;
 
@@ -22,11 +22,8 @@ public sealed class Flip7Room
     /// </summary>
     public const int MaxPlayers = 20;
 
-    public const int MaxNameLength = 20;
-
     private readonly Func<int, IReadOnlyList<Card>> _deckFactory;
     private readonly Random _rng;
-    private readonly List<Player> _players = [];
     private readonly Queue<Card> _deck = new();
     private readonly List<Card> _discard = [];
     private readonly Dictionary<Guid, int> _totals = [];
@@ -60,23 +57,36 @@ public sealed class Flip7Room
     private bool _turnSpent;
 
     public Flip7Room(string code, Func<int, IReadOnlyList<Card>> deckFactory, Random rng)
+        : base(code)
     {
-        Code = code;
         _deckFactory = deckFactory;
         _rng = rng;
     }
 
+    protected override int MinSeats => MinPlayers;
+
+    protected override int MaxSeats => MaxPlayers;
+
+    protected override bool DealsInNewPlayers => Phase is Flip7Phase.Lobby;
+
+    protected override bool SeatsAreFree => Phase is Flip7Phase.Lobby or Flip7Phase.GameOver;
+
+    /// <summary>They banked what they had; the turn can move past them.</summary>
+    protected override void OnPlayerSidelined(Guid id) => SidelineFromRound(id);
+
+    /// <summary>
+    /// Nobody else can act until the current player does, so a dropped circuit would stall the
+    /// whole table. Drive it forward rather than waiting on someone who has gone.
+    /// </summary>
+    protected override void OnConnectionChanged(Guid id) => Pump();
+
     /// <summary>A room that plays with real, shuffled decks.</summary>
     public static Flip7Room Standard(string code, Random rng) => new(code, Flip7Deck.Shuffled(rng), rng);
 
-    public string Code { get; }
     public Flip7Phase Phase { get; private set; } = Flip7Phase.Lobby;
-    public IReadOnlyList<Player> Players => _players;
     public RoundState? Round { get; private set; }
     public int DeckCount => _deck.Count;
     public int DiscardCount => _discard.Count;
-
-    public Player? Host => _players.FirstOrDefault(p => p.IsHost);
 
     /// <summary>Running totals across the game's rounds.</summary>
     public IReadOnlyDictionary<Guid, int> Totals => _totals;
@@ -116,152 +126,13 @@ public sealed class Flip7Room
         }
     }
 
-    // ---- Roster ----
-
-    public Player Join(Guid id, string name)
-    {
-        name = name.Trim();
-        if (name.Length > MaxNameLength)
-        {
-            name = name[..MaxNameLength];
-        }
-
-        var existing = _players.FirstOrDefault(p => p.Id == id);
-        if (existing is not null)
-        {
-            if (name.Length > 0)
-            {
-                existing.Name = name;
-            }
-
-            return existing;
-        }
-
-        if (name.Length == 0)
-        {
-            throw new GameRuleException("Enter a name first.");
-        }
-
-        if (_players.Count >= MaxPlayers)
-        {
-            throw new GameRuleException($"This room is full ({MaxPlayers} players max).");
-        }
-
-        var player = new Player
-        {
-            Id = id,
-            Name = name,
-            IsHost = _players.Count == 0,
-            IsSpectator = Phase is not Flip7Phase.Lobby,
-        };
-        _players.Add(player);
-        return player;
-    }
-
-    public void Leave(Guid id)
-    {
-        var player = _players.FirstOrDefault(p => p.Id == id);
-        if (player is null)
-        {
-            return;
-        }
-
-        if (Phase is Flip7Phase.Lobby or Flip7Phase.GameOver || player.IsSpectator)
-        {
-            _players.Remove(player);
-        }
-        else
-        {
-            // Mid-game: keep the seat (scores reference it) but stop expecting anything from them.
-            player.IsSpectator = true;
-            SidelineFromRound(id);
-        }
-
-        if (player.IsHost)
-        {
-            player.IsHost = false;
-            var next = _players.FirstOrDefault(p => !p.IsSpectator) ?? _players.FirstOrDefault();
-            if (next is not null)
-            {
-                next.IsHost = true;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Sits an away player out until they come back, so the host doesn't have to wait on them
-    /// every round. The decision is sticky — it lifts while they're actually connected and
-    /// re-arms if they drop again — and clears entirely once a new game starts with them present.
-    /// </summary>
-    public void BenchPlayer(Guid callerId, Guid targetId)
-    {
-        RequireHostPowers(callerId);
-        var player = _players.FirstOrDefault(p => p.Id == targetId)
-            ?? throw new GameRuleException("That player isn't in this room.");
-
-        if (player.IsConnected)
-        {
-            throw new GameRuleException("You can only sit out a player who's away.");
-        }
-
-        if (player.IsSpectator)
-        {
-            throw new GameRuleException("They're already sitting out.");
-        }
-
-        player.IsSpectator = true;
-        player.BenchedForInactivity = true;
-        SidelineFromRound(targetId);
-    }
-
-    public void PlayerConnected(Guid id)
-    {
-        var player = _players.FirstOrDefault(p => p.Id == id);
-        if (player is null)
-        {
-            return;
-        }
-
-        player.ConnectionCount++;
-        if (player.BenchedForInactivity)
-        {
-            // They're active again — back in from the next round. The bench decision itself is
-            // kept so a brief reconnect doesn't discard it; it re-arms if they drop again.
-            player.IsSpectator = false;
-        }
-    }
-
-    public void PlayerDisconnected(Guid id)
-    {
-        var player = _players.FirstOrDefault(p => p.Id == id);
-        if (player is null || player.ConnectionCount == 0)
-        {
-            return;
-        }
-
-        player.ConnectionCount--;
-        if (player.BenchedForInactivity && !player.IsConnected)
-        {
-            player.IsSpectator = true;
-        }
-
-        // They may have been the one the round was waiting on. Nobody else can act until this
-        // player does, so drive it forward rather than letting the round stall on a dead circuit.
-        Pump();
-    }
-
     // ---- Game flow ----
 
     public void StartGame(Guid callerId)
     {
         RequirePhase(Flip7Phase.Lobby);
         RequireHostPowers(callerId);
-
-        if (_players.Count(p => !StaysBenched(p)) < MinPlayers)
-        {
-            throw new GameRuleException($"Need at least {MinPlayers} players to start.");
-        }
-
+        RequireEnoughPlayers();
         ClearSpectators();
 
         var seats = Seats();
@@ -857,25 +728,9 @@ public sealed class Flip7Room
 
     // ---- Internals ----
 
-    private static bool StaysBenched(Player p) => p.BenchedForInactivity && !p.IsConnected;
+    private bool IsConnected(Guid id) => Players.FirstOrDefault(p => p.Id == id)?.IsConnected ?? false;
 
-    private void ClearSpectators()
-    {
-        foreach (var p in _players)
-        {
-            if (StaysBenched(p))
-            {
-                continue;
-            }
-
-            p.IsSpectator = false;
-            p.BenchedForInactivity = false;
-        }
-    }
-
-    private bool IsConnected(Guid id) => _players.FirstOrDefault(p => p.Id == id)?.IsConnected ?? false;
-
-    private List<Guid> Seats() => [.. _players.Where(p => !p.IsSpectator).Select(p => p.Id)];
+    private List<Guid> Seats() => [.. Seated.Select(p => p.Id)];
 
     /// <summary>
     /// The next player round from the current dealer. Walks the whole roster rather than the
@@ -890,16 +745,16 @@ public sealed class Flip7Room
             throw new GameRuleException("There's nobody left to play.");
         }
 
-        var from = _dealerId is { } dealer ? _players.FindIndex(p => p.Id == dealer) : -1;
+        var from = _dealerId is { } dealer ? Players.ToList().FindIndex(p => p.Id == dealer) : -1;
         if (from < 0)
         {
             // The dealer isn't even in the room any more; start from the top.
             return seats[0];
         }
 
-        for (var step = 1; step <= _players.Count; step++)
+        for (var step = 1; step <= Players.Count; step++)
         {
-            var candidate = _players[(from + step) % _players.Count];
+            var candidate = Players[(from + step) % Players.Count];
             if (!candidate.IsSpectator)
             {
                 return candidate.Id;
@@ -969,23 +824,4 @@ public sealed class Flip7Room
         }
     }
 
-    /// <summary>Host-only, but if the host is disconnected anyone may drive so the game never stalls.</summary>
-    private void RequireHostPowers(Guid callerId)
-    {
-        var caller = _players.FirstOrDefault(p => p.Id == callerId)
-            ?? throw new GameRuleException("You're not in this room.");
-
-        if (caller.IsHost)
-        {
-            return;
-        }
-
-        var host = Host;
-        if (host is null || !host.IsConnected)
-        {
-            return;
-        }
-
-        throw new GameRuleException($"Only the host ({host.Name}) can do that.");
-    }
 }

@@ -10,5 +10,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/Party.Flip7.Tests/Party.Flip7.Tests.csproj" />
     <Project Path="tests/Party.JustOne.Tests/Party.JustOne.Tests.csproj" />
+    <Project Path="tests/Party.Web.Tests/Party.Web.Tests.csproj" />
   </Folder>
 </Solution>

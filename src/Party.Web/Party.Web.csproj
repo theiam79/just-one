@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Party.Core/Party.Core.csproj" />
+    <ProjectReference Include="../Party.Flip7/Party.Flip7.csproj" />
     <ProjectReference Include="../Party.JustOne/Party.JustOne.csproj" />
     <ProjectReference Include="../Party.ServiceDefaults/Party.ServiceDefaults.csproj" />
   </ItemGroup>

@@ -9,7 +9,7 @@
 
     <div class="home-card">
         <label for="name">Your name</label>
-        <input id="name" maxlength="@GameRoom.MaxNameLength" placeholder="e.g. Alex" @bind="_name" @bind:event="oninput" />
+        <input id="name" maxlength="20" placeholder="e.g. Alex" @bind="_name" @bind:event="oninput" />
 
         @if (_error is not null)
         {
@@ -52,7 +52,7 @@
             return;
         }
 
-        var handle = Rooms.CreateRoom();
+        var handle = Rooms.CreateRoom(GameType.JustOne);
         Nav.NavigateTo($"/room/{handle.Code}");
     }
 

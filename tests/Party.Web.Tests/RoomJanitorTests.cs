@@ -36,23 +36,18 @@ public class RoomJanitorTests
     }
 
     [Test]
-    public async Task It_leaves_a_busy_room_alone()
+    public async Task It_leaves_a_room_that_is_still_in_use_alone()
     {
+        // A generous idle limit rather than a keep-alive loop racing the scheduler: the room is
+        // simply younger than the limit, so no amount of sweeping should touch it.
         var manager = new RoomManager();
-        var handle = (RoomHandle<Party.JustOne.GameRoom>)manager.CreateRoom(GameType.JustOne);
+        var handle = manager.CreateRoom(GameType.JustOne);
 
-        // Keep it warm across the sweep.
-        var keepAlive = Task.Run(async () =>
-        {
-            for (var i = 0; i < 20; i++)
-            {
-                handle.Mutate(_ => { });
-                await Task.Delay(10);
-            }
-        });
-
-        await Sweep(manager);
-        await keepAlive;
+        var janitor = new RoomJanitor(manager, TimeSpan.FromMilliseconds(20), TimeSpan.FromHours(1));
+        await ((IHostedService)janitor).StartAsync(CancellationToken.None);
+        await Task.Delay(200);
+        await ((IHostedService)janitor).StopAsync(CancellationToken.None);
+        janitor.Dispose();
 
         await Assert.That(manager.TryGetRoom(handle.Code, out _)).IsTrue();
         await Assert.That(handle.IsClosed).IsFalse();

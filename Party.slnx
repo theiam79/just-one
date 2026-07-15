@@ -8,6 +8,7 @@
     <Project Path="src/Party.Web/Party.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Party.Core.Tests/Party.Core.Tests.csproj" />
     <Project Path="tests/Party.Flip7.Tests/Party.Flip7.Tests.csproj" />
     <Project Path="tests/Party.JustOne.Tests/Party.JustOne.Tests.csproj" />
     <Project Path="tests/Party.Web.Tests/Party.Web.Tests.csproj" />

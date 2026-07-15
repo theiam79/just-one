@@ -1,12 +1,11 @@
-namespace Party.Flip7;
+namespace Party.Core;
 
 /// <summary>
-/// A seat in a Flip 7 room.
+/// A seat in a room.
 /// </summary>
 /// <remarks>
-/// Deliberately duplicated from Party.JustOne rather than shared: the roster layer is extracted
-/// into Party.Core once both games exist and can show where the seam actually goes (#23).
-/// Every field here is game-agnostic, so expect this file to disappear into the shared base.
+/// Nothing here is specific to a game: a seat, whether they're the host, whether they're
+/// watching rather than playing, and how many browser tabs they have open.
 /// </remarks>
 public sealed class Player
 {

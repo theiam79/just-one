@@ -6,13 +6,12 @@ namespace Party.JustOne;
 /// The full rules state machine for one room. Purely synchronous and not thread-safe:
 /// the web layer serializes access behind a lock and handles change notification.
 /// </summary>
-public sealed class GameRoom
+public sealed class GameRoom : RoomBase
 {
     public const int MinPlayers = 3;
     public const int MaxPlayers = 12;
     public const int CardsPerGame = 13;
     public const int WordsPerCard = 5;
-    public const int MaxNameLength = 20;
     /// <summary>At or below this many players, <see cref="TwoCluesMode.Auto"/> asks for two clues each.</summary>
     public const int TwoCluesMaxPlayers = 4;
     public const int MinTimerSeconds = 15;
@@ -21,7 +20,6 @@ public sealed class GameRoom
 
     private readonly string[] _words;
     private readonly Random _rng;
-    private readonly List<Player> _players = [];
     private readonly Queue<Card> _deck = new();
     private int _guesserIndex;
 
@@ -31,8 +29,8 @@ public sealed class GameRoom
     private Guid? _lastGuesserId;
 
     public GameRoom(string code, IEnumerable<string> words, Random rng)
+        : base(code)
     {
-        Code = code;
         _rng = rng;
         _words = words.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (_words.Length < CardsPerGame * WordsPerCard)
@@ -41,9 +39,7 @@ public sealed class GameRoom
         }
     }
 
-    public string Code { get; }
     public GamePhase Phase { get; private set; } = GamePhase.Lobby;
-    public IReadOnlyList<Player> Players => _players;
     public RoundState? Round { get; private set; }
     public int Score { get; private set; }
     public int DeckCount => _deck.Count;
@@ -53,159 +49,30 @@ public sealed class GameRoom
     /// <summary>Cards not yet resolved, including the one in play.</summary>
     public int CardsLeft => _deck.Count + (Phase is GamePhase.NumberPick or GamePhase.ClueWriting or GamePhase.ClueReview or GamePhase.Guessing or GamePhase.Judging ? 1 : 0);
 
-    public Player? Host => _players.FirstOrDefault(p => p.IsHost);
+    protected override int MinSeats => MinPlayers;
+
+    protected override int MaxSeats => MaxPlayers;
+
+    protected override bool DealsInNewPlayers => Phase is GamePhase.Lobby;
+
+    protected override bool SeatsAreFree => Phase is GamePhase.Lobby or GamePhase.GameOver;
+
+    /// <summary>Stop waiting on a clue from someone who isn't going to write one.</summary>
+    protected override void OnPlayerSidelined(Guid id)
+    {
+        if (Phase == GamePhase.ClueWriting && Round is not null
+            && Round.ExpectedWriters.Contains(id) && !Round.Clues.ContainsKey(id))
+        {
+            Round.SkippedWriters.Add(id);
+            TryFinishClueWriting();
+        }
+    }
 
     /// <summary>How long the group's shared countdown runs for; set by the host in the lobby.</summary>
     public int TimerSeconds { get; private set; } = DefaultTimerSeconds;
 
     /// <summary>Whether clue-givers write two clues each; set by the host in the lobby.</summary>
     public TwoCluesMode TwoCluesMode { get; private set; } = TwoCluesMode.Auto;
-
-    // ---- Roster ----
-
-    public Player Join(Guid id, string name)
-    {
-        name = name.Trim();
-        if (name.Length > MaxNameLength)
-        {
-            name = name[..MaxNameLength];
-        }
-
-        var existing = _players.FirstOrDefault(p => p.Id == id);
-        if (existing is not null)
-        {
-            if (name.Length > 0)
-            {
-                existing.Name = name;
-            }
-
-            return existing;
-        }
-
-        if (name.Length == 0)
-        {
-            throw new GameRuleException("Enter a name first.");
-        }
-
-        if (_players.Count >= MaxPlayers)
-        {
-            throw new GameRuleException($"This room is full ({MaxPlayers} players max).");
-        }
-
-        var player = new Player
-        {
-            Id = id,
-            Name = name,
-            IsHost = _players.Count == 0,
-            IsSpectator = Phase is not GamePhase.Lobby,
-        };
-        _players.Add(player);
-        return player;
-    }
-
-    public void Leave(Guid id)
-    {
-        var player = _players.FirstOrDefault(p => p.Id == id);
-        if (player is null)
-        {
-            return;
-        }
-
-        if (Phase is GamePhase.Lobby or GamePhase.GameOver || player.IsSpectator)
-        {
-            _players.Remove(player);
-        }
-        else
-        {
-            // Mid-game: keep the seat (scores/history reference it) but stop expecting anything from them.
-            player.IsSpectator = true;
-            if (Phase == GamePhase.ClueWriting && Round is not null
-                && Round.ExpectedWriters.Contains(id) && !Round.Clues.ContainsKey(id))
-            {
-                Round.SkippedWriters.Add(id);
-                TryFinishClueWriting();
-            }
-        }
-
-        if (player.IsHost)
-        {
-            player.IsHost = false;
-            var next = _players.FirstOrDefault(p => !p.IsSpectator) ?? _players.FirstOrDefault();
-            if (next is not null)
-            {
-                next.IsHost = true;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Sits an away player out until they come back, so the host doesn't have to skip them
-    /// every single round: they stop being dealt guesser turns and stop being expected to
-    /// write clues. The decision is sticky — it lifts while they're actually connected and
-    /// re-arms if they drop again, so a flaky circuit doesn't quietly put them back in the
-    /// game — and clears entirely once a new game starts with them present.
-    /// </summary>
-    public void BenchPlayer(Guid callerId, Guid targetId)
-    {
-        RequireHostPowers(callerId);
-        var player = _players.FirstOrDefault(p => p.Id == targetId)
-            ?? throw new GameRuleException("That player isn't in this room.");
-
-        if (player.IsConnected)
-        {
-            throw new GameRuleException("You can only sit out a player who's away.");
-        }
-
-        if (player.IsSpectator)
-        {
-            throw new GameRuleException("They're already sitting out.");
-        }
-
-        player.IsSpectator = true;
-        player.BenchedForInactivity = true;
-
-        // Unblock the round in progress if it was still waiting on their clue.
-        if (Phase == GamePhase.ClueWriting && Round is not null
-            && Round.ExpectedWriters.Contains(targetId) && !Round.Clues.ContainsKey(targetId))
-        {
-            Round.SkippedWriters.Add(targetId);
-            TryFinishClueWriting();
-        }
-    }
-
-    public void PlayerConnected(Guid id)
-    {
-        var player = _players.FirstOrDefault(p => p.Id == id);
-        if (player is null)
-        {
-            return;
-        }
-
-        player.ConnectionCount++;
-        if (player.BenchedForInactivity)
-        {
-            // They're active again — back in from the next round. The bench decision itself
-            // is kept so a brief reconnect doesn't discard it; it re-arms below if they drop
-            // again, and ClearSpectators retires it once a new game starts with them here.
-            player.IsSpectator = false;
-        }
-    }
-
-    public void PlayerDisconnected(Guid id)
-    {
-        var player = _players.FirstOrDefault(p => p.Id == id);
-        if (player is null || player.ConnectionCount == 0)
-        {
-            return;
-        }
-
-        player.ConnectionCount--;
-        if (player.BenchedForInactivity && !player.IsConnected)
-        {
-            // Away again, and the host already sat them out: don't make them re-do it.
-            player.IsSpectator = true;
-        }
-    }
 
     // ---- Settings ----
 
@@ -250,7 +117,7 @@ public sealed class GameRoom
     /// </summary>
     public void StartTimer(Guid callerId)
     {
-        RequirePlayer(callerId);
+        RequireSeated(callerId);
         if (Phase is not (GamePhase.ClueWriting or GamePhase.Guessing))
         {
             throw new GameRuleException("There's nothing to put a timer on right now.");
@@ -263,7 +130,7 @@ public sealed class GameRoom
     /// <summary>Clears the shared countdown early.</summary>
     public void CancelTimer(Guid callerId)
     {
-        RequirePlayer(callerId);
+        RequireSeated(callerId);
         if (Round is null)
         {
             return;
@@ -282,7 +149,7 @@ public sealed class GameRoom
 
         // Players benched while away sit the next game out, so they don't count towards
         // the minimum — otherwise a "full" room could start a game nobody can actually play.
-        if (_players.Count(p => !StaysBenched(p)) < MinPlayers)
+        if (Players.Count(p => !StaysBenched(p)) < MinPlayers)
         {
             throw new GameRuleException($"Need at least {MinPlayers} players to start.");
         }
@@ -299,11 +166,11 @@ public sealed class GameRoom
         // identity so it stays correct even if seats shifted when players left the
         // lobby between games. Either way we rotate onto the seat rather than assigning
         // it directly, so a benched or absent player is never dealt round 1.
-        var fromSeat = _players.Count - 1; // rotating from the last seat lands on seat 0
+        var fromSeat = Players.Count - 1; // rotating from the last seat lands on seat 0
         if (_lastGuesserId is { } lastId)
         {
-            var lastSeat = _players.FindIndex(p => p.Id == lastId);
-            fromSeat = lastSeat < 0 ? Math.Min(_guesserIndex, _players.Count - 1) : lastSeat;
+            var lastSeat = Players.ToList().FindIndex(p => p.Id == lastId);
+            fromSeat = lastSeat < 0 ? Math.Min(_guesserIndex, Players.Count - 1) : lastSeat;
         }
 
         RotateGuesserFrom(fromSeat);
@@ -321,7 +188,7 @@ public sealed class GameRoom
 
         Round!.ChosenNumber = number;
         Round.MysteryWord = Round.Card.Words[number - 1];
-        foreach (var p in _players)
+        foreach (var p in Players)
         {
             if (!p.IsSpectator && p.Id != callerId)
             {
@@ -331,7 +198,7 @@ public sealed class GameRoom
 
         // Fixed here, next to ExpectedWriters, so a roster change mid-round can't move the
         // goalposts for someone already writing.
-        Round.CluesPerWriter = CluesPerWriterFor(_players.Count(p => !p.IsSpectator));
+        Round.CluesPerWriter = CluesPerWriterFor(Players.Count(p => !p.IsSpectator));
 
         if (Round.ExpectedWriters.Count == 0)
         {
@@ -545,28 +412,6 @@ public sealed class GameRoom
 
     // ---- Internals ----
 
-    /// <summary>Whether a new game would leave this player sitting out: benched, and still away.</summary>
-    private static bool StaysBenched(Player p) => p.BenchedForInactivity && !p.IsConnected;
-
-    /// <summary>
-    /// Brings spectators in as players for a new game — except anyone benched for inactivity
-    /// who is still away, who stays out until they actually come back. Players who are back
-    /// have their bench retired, so the next game is a clean slate for them.
-    /// </summary>
-    private void ClearSpectators()
-    {
-        foreach (var p in _players)
-        {
-            if (StaysBenched(p))
-            {
-                continue;
-            }
-
-            p.IsSpectator = false;
-            p.BenchedForInactivity = false;
-        }
-    }
-
     private void BuildDeck()
     {
         var pool = (string[])_words.Clone();
@@ -588,7 +433,7 @@ public sealed class GameRoom
         Round = new RoundState
         {
             RoundNumber = roundNumber,
-            GuesserId = _players[_guesserIndex].Id,
+            GuesserId = Players[_guesserIndex].Id,
             Card = _deck.Dequeue(),
         };
         _lastGuesserId = Round.GuesserId;
@@ -597,10 +442,10 @@ public sealed class GameRoom
 
     private void AdvanceGuesser()
     {
-        var currentIndex = _players.FindIndex(p => p.Id == Round!.GuesserId);
+        var currentIndex = Players.ToList().FindIndex(p => p.Id == Round!.GuesserId);
         if (currentIndex < 0)
         {
-            currentIndex = Math.Min(_guesserIndex, _players.Count - 1);
+            currentIndex = Math.Min(_guesserIndex, Players.Count - 1);
         }
 
         RotateGuesserFrom(currentIndex);
@@ -614,10 +459,10 @@ public sealed class GameRoom
     private void RotateGuesserFrom(int currentIndex)
     {
         int? firstEligible = null;
-        for (var step = 1; step <= _players.Count; step++)
+        for (var step = 1; step <= Players.Count; step++)
         {
-            var index = (currentIndex + step) % _players.Count;
-            var candidate = _players[index];
+            var index = (currentIndex + step) % Players.Count;
+            var candidate = Players[index];
             if (candidate.IsSpectator)
             {
                 continue;
@@ -675,28 +520,16 @@ public sealed class GameRoom
             _deck.Dequeue();
         }
 
-        var guesserName = _players.FirstOrDefault(p => p.Id == Round.GuesserId)?.Name ?? "?";
+        var guesserName = Players.FirstOrDefault(p => p.Id == Round.GuesserId)?.Name ?? "?";
         CompletedRounds.Add(new RoundRecord(Round.RoundNumber, Round.MysteryWord, Round.Guess, outcome, guesserName));
         Phase = GamePhase.RoundResult;
     }
-
-    private Player GetPlayer(Guid id) =>
-        _players.FirstOrDefault(p => p.Id == id) ?? throw new GameRuleException("You're not in this room.");
 
     private void RequirePhase(GamePhase phase)
     {
         if (Phase != phase)
         {
             throw new GameRuleException("That move isn't available right now.");
-        }
-    }
-
-    /// <summary>Anyone actually playing — including the guesser, unlike <see cref="RequireClueReviewer"/>.</summary>
-    private void RequirePlayer(Guid callerId)
-    {
-        if (GetPlayer(callerId).IsSpectator)
-        {
-            throw new GameRuleException("Spectators can't do that — you're in next game!");
         }
     }
 
@@ -723,21 +556,4 @@ public sealed class GameRoom
         }
     }
 
-    /// <summary>Host-only, but if the host is disconnected anyone may drive so the game never stalls.</summary>
-    private void RequireHostPowers(Guid callerId)
-    {
-        var caller = GetPlayer(callerId);
-        if (caller.IsHost)
-        {
-            return;
-        }
-
-        var host = Host;
-        if (host is null || !host.IsConnected)
-        {
-            return;
-        }
-
-        throw new GameRuleException($"Only the host ({host.Name}) can do that.");
-    }
 }

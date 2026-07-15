@@ -37,19 +37,32 @@ else if (_needName)
         </div>
     </div>
 }
+@* Dispatch on the handle's own type rather than its game tag: the type test is what hands
+   the stage a handle it definitely fits, so there is no cast here to get wrong. *@
+else if (_handle is RoomHandle<GameRoom> justOne)
+{
+    <JustOneStage Handle="@justOne" PlayerId="@_playerId" PlayerName="@_name" />
+}
+else if (_handle is RoomHandle<Party.Flip7.Flip7Room> flip7)
+{
+    <Flip7Stage Handle="@flip7" PlayerId="@_playerId" PlayerName="@_name" />
+}
 else
 {
-    @switch (_handle!.Game)
-    {
-        case GameType.JustOne:
-            <JustOneStage Handle="@((RoomHandle<GameRoom>)_handle)" PlayerId="@_playerId" PlayerName="@_name" />
-            break;
-    }
+    <div class="home">
+        <div class="home-card">
+            <h2>Can't open this room</h2>
+            <p>The room <strong>@Code.ToUpperInvariant()</strong> is playing a game this page doesn't know how to show.</p>
+            <a class="btn primary" href="/">Back to start</a>
+        </div>
+    </div>
 }
 
 @code {
-    // The two games cap names at the same length; the shell's form only needs one number.
-    private const int MaxNameLength = 20;
+    // The form is shared, so cap at whatever the strictest game allows rather than trusting
+    // the two to stay in step.
+    private static readonly int MaxNameLength =
+        Math.Min(GameRoom.MaxNameLength, Party.Flip7.Flip7Room.MaxNameLength);
 
     [Parameter] public string Code { get; set; } = "";
 

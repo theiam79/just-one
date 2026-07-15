@@ -12,9 +12,21 @@
         </div>
     </div>
 }
+else if (_view is null && Error is not null)
+{
+    @* Joining was refused — a full room, most likely. Say so, and offer a way out rather
+       than leaving them on a dead line of text. *@
+    <div class="home">
+        <div class="home-card">
+            <h2>Can't join this room</h2>
+            <p>@Error</p>
+            <a class="btn primary" href="/">Back to start</a>
+        </div>
+    </div>
+}
 else if (_view is null)
 {
-    <div class="center-note">@(Error ?? "Joining…")</div>
+    <div class="center-note">Joining…</div>
 }
 else
 {

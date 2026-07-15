@@ -1,0 +1,103 @@
+@using Party.Flip7
+@* Both games have a Card; this file means Flip 7's. *@
+@using Card = Party.Flip7.Card
+
+@* Everyone's line, face up. Flip 7 has no hidden information, so this is simply the table. *@
+
+<div class="f7table">
+    @foreach (var p in View.Players.Where(p => !p.IsSpectator))
+    {
+        <div class="f7seat @SeatClass(p)">
+            <div class="f7seat-head">
+                <span class="dot @(p.IsConnected ? "on" : "off")" title="@(p.IsConnected ? "connected" : "away")"></span>
+                <span class="player-name">@p.Name</span>
+                @if (p.IsHost)
+                {
+                    <span class="badge" title="Host">★</span>
+                }
+                @if (p.IsDealer)
+                {
+                    <span class="badge" title="Dealer this round">deals</span>
+                }
+                @if (p.Id == View.Flip7PlayerId)
+                {
+                    <span class="badge ok" title="Seven different numbers">FLIP 7!</span>
+                }
+                else
+                {
+                    @switch (p.Status)
+                    {
+                        case RoundStatus.Busted:
+                            <span class="badge bad" title="Two of the same number">bust</span>
+                            break;
+                        case RoundStatus.Frozen:
+                            <span class="badge soft" title="Frozen — points banked">frozen</span>
+                            break;
+                        case RoundStatus.Stayed:
+                            <span class="badge soft" title="Stayed — points banked">stayed</span>
+                            break;
+                        case RoundStatus.Active when p.IsTheirTurn:
+                            <span class="badge" title="It's their go">their go</span>
+                            break;
+                    }
+                }
+                <span class="f7total" title="Total this game">@p.Total</span>
+            </div>
+
+            <div class="f7line">
+                @if (p.Line.Count == 0)
+                {
+                    <span class="f7empty">nothing yet</span>
+                }
+                else
+                {
+                    @foreach (var card in p.Line)
+                    {
+                        <Flip7Card Card="card" Faded="@(p.Status == RoundStatus.Busted)" />
+                    }
+                }
+            </div>
+
+            <div class="f7seat-foot">
+                @if (p.Status == RoundStatus.Busted)
+                {
+                    <span class="f7round bad">0 this round</span>
+                }
+                else if (p.Line.Count > 0)
+                {
+                    <span class="f7round">@p.RoundScore this round</span>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required Flip7View View { get; set; }
+
+    private string SeatClass(Flip7PlayerView p)
+    {
+        var classes = new List<string>();
+        if (p.Id == View.MyId)
+        {
+            classes.Add("me");
+        }
+
+        if (p.IsTheirTurn)
+        {
+            classes.Add("turn");
+        }
+
+        if (!p.IsConnected)
+        {
+            classes.Add("away");
+        }
+
+        if (p.Status == RoundStatus.Busted)
+        {
+            classes.Add("busted");
+        }
+
+        return string.Join(' ', classes);
+    }
+}

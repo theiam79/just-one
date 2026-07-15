@@ -1,0 +1,98 @@
+@using Party.Flip7
+@* Both games have a Card; this file means Flip 7's. *@
+@using Card = Party.Flip7.Card
+
+@* Flip 7 asks one player at a time, so the panel's first job is making it obvious whose go it
+   is — everyone else is only waiting. *@
+
+<div class="phase-card">
+    @if (View.IAmChoosing)
+    {
+        <h2>Where does it go?</h2>
+        <p class="f7played">
+            <Flip7Card Card="View.MyChoiceCard!" />
+            <span>@ChoicePrompt</span>
+        </p>
+        <div class="f7targets">
+            @foreach (var target in View.MyChoiceTargets)
+            {
+                <button class="btn @(target.Id == View.MyId ? "primary" : "")"
+                        @onclick="() => Act(r => r.ChooseTarget(View.MyId, target.Id))">
+                    @(target.Id == View.MyId ? "Myself" : target.Name)
+                </button>
+            }
+        </div>
+    }
+    else if (View.ChoosingPlayerName is { } chooser)
+    {
+        <h2>@chooser is placing a card…</h2>
+        <p class="hint">Nothing else happens until they do.</p>
+    }
+    else if (View.IAmCurrentPlayer)
+    {
+        <h2>Your go</h2>
+        @if (View.CanStay)
+        {
+            <p class="hint">Take another card, or stop here and keep the @Me!.RoundScore you've got.</p>
+        }
+        else
+        {
+            <p class="hint">You've nothing in front of you yet — you'll have to take a card.</p>
+        }
+
+        <div class="f7actions">
+            <button class="btn primary big" @onclick="() => Act(r => r.Hit(View.MyId))">Hit</button>
+            <button class="btn big" disabled="@(!View.CanStay)" @onclick="() => Act(r => r.Stay(View.MyId))">
+                Stay@(View.CanStay ? $" on {Me!.RoundScore}" : "")
+            </button>
+        </div>
+        @if (!View.CanStay)
+        {
+            <p class="hint">You can only stay with a card in front of you.</p>
+        }
+    }
+    else if (View.IAmSpectator)
+    {
+        <h2>Round @View.RoundNumber</h2>
+        <p class="waiting">You're watching this one — you'll be dealt in next game.</p>
+    }
+    else
+    {
+        <h2>@(CurrentName ?? "Someone")'s go</h2>
+        <p class="waiting">
+            @if (Me is { Status: RoundStatus.Busted })
+            {
+                <text>You busted — nothing this round.</text>
+            }
+            else if (Me is { Status: RoundStatus.Frozen })
+            {
+                <text>You were frozen on @Me.RoundScore.</text>
+            }
+            else if (Me is { Status: RoundStatus.Stayed })
+            {
+                <text>You stayed on @Me.RoundScore.</text>
+            }
+            else
+            {
+                <text>Waiting for them to hit or stay.</text>
+            }
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required Flip7View View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<Flip7Room>> Act { get; set; }
+
+    private Flip7PlayerView? Me => View.Me;
+
+    private string? CurrentName => View.Players.FirstOrDefault(p => p.Id == View.CurrentPlayerId)?.Name;
+
+    private string ChoicePrompt => View.MyChoiceKind switch
+    {
+        ChoiceKind.SecondChanceRecipient => "You can only hold one Second Chance — who gets this one?",
+        _ => View.MyChoiceCard is ActionCard { Kind: ActionKind.Freeze }
+            ? "Freeze someone — they bank what they have and are out of the round."
+            : "Flip Three — they take the next three cards, one at a time.",
+    };
+}

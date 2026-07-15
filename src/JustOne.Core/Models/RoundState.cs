@@ -17,4 +17,16 @@ public sealed class RoundState
     public Dictionary<Guid, Clue> Clues { get; } = [];
     public string? Guess { get; set; }
     public RoundOutcome? Outcome { get; set; }
+
+    /// <summary>
+    /// When the group's shared countdown runs out, or null if nobody started one.
+    /// Purely advisory — nothing happens automatically when it passes.
+    /// </summary>
+    public DateTimeOffset? TimerDeadline { get; set; }
+
+    /// <summary>
+    /// The phase <see cref="TimerDeadline"/> was started for, so a countdown left over from
+    /// an earlier phase stops being shown once the round moves on.
+    /// </summary>
+    public GamePhase? TimerPhase { get; set; }
 }

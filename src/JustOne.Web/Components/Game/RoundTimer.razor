@@ -1,0 +1,99 @@
+@implements IDisposable
+
+@if (View.TimerDeadline is { } deadline)
+{
+    var left = deadline - DateTimeOffset.UtcNow;
+    var up = left <= TimeSpan.Zero;
+    <div class="round-timer @(up ? "up" : "")">
+        <span class="timer-clock">@(up ? "time's up!" : Clock(left))</span>
+        @if (!View.IAmSpectator)
+        {
+            <button class="btn tiny ghost" title="Clear the timer"
+                    @onclick="() => Act(g => g.CancelTimer(View.MyId))">clear</button>
+            <button class="btn tiny ghost" title="Restart the timer"
+                    @onclick="() => Act(g => g.StartTimer(View.MyId))">restart</button>
+        }
+    </div>
+}
+else if (View.CanUseTimer)
+{
+    <button class="btn tiny ghost round-timer-start" title="Start a shared countdown for everyone"
+            @onclick="() => Act(g => g.StartTimer(View.MyId))">
+        ⏱ start @View.TimerSeconds s timer
+    </button>
+}
+
+@code {
+    [Parameter, EditorRequired] public required RoomView View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+
+    // The countdown ticks locally in each circuit rather than the server pushing a state
+    // change every second: only this component re-renders, and only its clock text changes.
+    // The ticker is touched from both the circuit thread (OnParametersSet) and the timer's
+    // own threadpool thread (OnTick), so all access goes through the gate — otherwise a tick
+    // disposing the ticker can race a restart into seeing a stale non-null and never starting.
+    private readonly object _tickerGate = new();
+    private System.Timers.Timer? _ticker;
+
+    protected override void OnParametersSet()
+    {
+        if (View.TimerDeadline is { } deadline && DateTimeOffset.UtcNow < deadline)
+        {
+            StartTicking();
+        }
+        else
+        {
+            StopTicking();
+        }
+    }
+
+    private void StartTicking()
+    {
+        lock (_tickerGate)
+        {
+            if (_ticker is not null)
+            {
+                return;
+            }
+
+            var ticker = new System.Timers.Timer(500) { AutoReset = true };
+            ticker.Elapsed += OnTick;
+            _ticker = ticker;
+            ticker.Start();
+        }
+    }
+
+    private void OnTick(object? sender, System.Timers.ElapsedEventArgs e)
+    {
+        // Once it's up there's nothing left to count down, so stop re-rendering.
+        if (View.TimerDeadline is not { } deadline || DateTimeOffset.UtcNow >= deadline)
+        {
+            StopTicking();
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void StopTicking()
+    {
+        lock (_tickerGate)
+        {
+            if (_ticker is null)
+            {
+                return;
+            }
+
+            _ticker.Elapsed -= OnTick;
+            _ticker.Dispose(); // safe from inside Elapsed: it doesn't wait on in-flight callbacks
+            _ticker = null;
+        }
+    }
+
+    private static string Clock(TimeSpan left)
+    {
+        var seconds = (int)Math.Ceiling(left.TotalSeconds);
+        return $"{seconds / 60}:{seconds % 60:D2}";
+    }
+
+    public void Dispose() => StopTicking();
+}

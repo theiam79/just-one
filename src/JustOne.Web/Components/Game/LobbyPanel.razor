@@ -17,6 +17,18 @@
 
     @if (View.HasHostPowers)
     {
+        <div class="setting">
+            <span class="setting-label">Timer length</span>
+            <div class="setting-options">
+                @foreach (var seconds in TimerChoices)
+                {
+                    <button class="btn tiny @(View.TimerSeconds == seconds ? "primary" : "ghost")"
+                            @onclick="() => Act(g => g.SetTimerSeconds(View.MyId, seconds))">@seconds s</button>
+                }
+            </div>
+            <p class="hint">Anyone can start the countdown while clues are being written or guessed. It's just a nudge — nothing happens automatically when it runs out.</p>
+        </div>
+
         <button class="btn primary big" disabled="@(View.Players.Count < GameRoom.MinPlayers)"
                 @onclick="() => Act(g => g.StartGame(View.MyId))">
             Start game
@@ -35,4 +47,6 @@
 @code {
     [Parameter, EditorRequired] public required RoomView View { get; set; }
     [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+
+    private static readonly int[] TimerChoices = [30, 60, 90, 120];
 }

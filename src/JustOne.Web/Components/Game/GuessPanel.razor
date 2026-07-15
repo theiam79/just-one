@@ -23,10 +23,12 @@
             <button class="btn primary" type="submit">Guess</button>
         </form>
         <button class="btn ghost" @onclick="() => Act(g => g.Pass(View.MyId))">Pass (discard this card, no penalty)</button>
+        <RoundTimer View="View" Act="Act" />
     }
     else
     {
         <h2>@View.GuesserName is guessing…</h2>
+        <RoundTimer View="View" Act="Act" />
         <p>The word is <strong class="inline-word">@View.MysteryWord</strong>. They can see:</p>
         <div class="clue-grid">
             @foreach (var clue in View.Clues.Where(c => !c.Cancelled))

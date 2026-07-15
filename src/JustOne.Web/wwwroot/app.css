@@ -230,6 +230,30 @@ button.clue-card:disabled { cursor: default; }
 .clue-card.cancelled .clue-text { text-decoration: line-through; }
 .clue-card.locked { border-style: dashed; }
 
+/* ---- Round timer ---- */
+.round-timer {
+  align-self: center;
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.timer-clock {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums; /* stop the width jittering as digits change */
+  color: var(--accent);
+}
+
+.round-timer.up .timer-clock { color: var(--bad); }
+.round-timer-start { align-self: center; margin-top: 0.4rem; }
+
+/* ---- Lobby settings ---- */
+.setting { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.5rem 0; }
+.setting-label { color: var(--muted); font-size: 0.85rem; }
+.setting-options { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
 .judge-row { display: flex; gap: 0.75rem; }
 .judge-row .btn { flex: 1; }
 

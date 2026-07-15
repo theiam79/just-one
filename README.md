@@ -30,9 +30,9 @@ writes a one-word clue — but identical clues cancel out and are never shown.
 ## Run it
 
 ```bash
-dotnet run --project src/JustOne.AppHost     # with the Aspire dashboard
+dotnet run --project src/Party.AppHost     # with the Aspire dashboard
 # or, standalone (same app, fixed ports):
-dotnet run --project src/JustOne.Web         # http://localhost:5201
+dotnet run --project src/Party.Web         # http://localhost:5201
 ```
 
 The web app always listens on **http://localhost:5201** (launch profile), under both the
@@ -42,7 +42,7 @@ AppHost and standalone runs.
 
 The AppHost includes Aspire's native dev tunnels integration (`Aspire.Hosting.DevTunnels`):
 a `tunnel` resource fronts the game's http endpoint with anonymous access enabled, so
-`dotnet run --project src/JustOne.AppHost` is all it takes — the public
+`dotnet run --project src/Party.AppHost` is all it takes — the public
 `https://….devtunnels.ms` URL appears on the **tunnel** resource in the Aspire dashboard.
 Share that URL (or URL + room code) with your friends.
 
@@ -56,17 +56,21 @@ Notes:
 - WebSockets (Blazor's circuit transport) work through dev tunnels out of the box.
 - Guests may see a one-time anonymous-access interstitial on first visit — just continue.
 - Don't want the tunnel on a given run? Comment out the `AddDevTunnel` block in
-  `src/JustOne.AppHost/AppHost.cs`, or run the web project standalone.
+  `src/Party.AppHost/AppHost.cs`, or run the web project standalone.
 
 ## Project layout
 
 ```
-src/JustOne.AppHost          Aspire app host (run this)
-src/JustOne.ServiceDefaults  OpenTelemetry / health checks / service discovery defaults
-src/JustOne.Core             Pure game engine — rules state machine, no ASP.NET deps
-src/JustOne.Web              Blazor Server app: rooms, real-time fan-out, UI
-tests/JustOne.Core.Tests     TUnit tests for the engine
+src/Party.AppHost          Aspire app host (run this)
+src/Party.ServiceDefaults  OpenTelemetry / health checks / service discovery defaults
+src/Party.Core             Game-agnostic room primitives (room codes, rule errors)
+src/Party.JustOne          Just One engine — rules state machine, no ASP.NET deps
+src/Party.Web              Blazor Server app: rooms, real-time fan-out, UI
+tests/Party.JustOne.Tests  TUnit tests for the Just One engine
 ```
+
+The `Party.*` naming anticipates a second game sharing the room layer; `Party.Core` holds
+what is genuinely game-agnostic.
 
 How real-time works: a singleton `RoomManager` holds each room behind a lock
 (`RoomHandle`); every mutation raises a `Changed` event and each player's Blazor circuit
@@ -77,9 +81,12 @@ clues.
 ## Tests
 
 ```bash
-dotnet run --project tests/JustOne.Core.Tests   # TUnit / Microsoft.Testing.Platform
-# `dotnet test` works too
+dotnet test                                      # all test projects
+dotnet run --project tests/Party.JustOne.Tests   # or run one directly
 ```
+
+`global.json` selects the Microsoft.Testing.Platform runner, which is what TUnit uses;
+without it `dotnet test` fails looking for VSTest.
 
 ## Manual smoke script (multi-browser)
 

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Party.Core/Party.Core.csproj" />
+    <ProjectReference Include="../Party.JustOne/Party.JustOne.csproj" />
+    <ProjectReference Include="../Party.ServiceDefaults/Party.ServiceDefaults.csproj" />
+  </ItemGroup>
+</Project>

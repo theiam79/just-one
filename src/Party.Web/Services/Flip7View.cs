@@ -17,14 +17,8 @@ public sealed record Flip7PlayerView(
     int RoundScore,
     int Total)
 {
+    /// <summary>Held, and worth nothing until it cancels a bust.</summary>
     public bool HasSecondChance => Line.Any(c => c is ActionCard { Kind: ActionKind.SecondChance });
-
-    public IEnumerable<NumberCard> Numbers => Line.OfType<NumberCard>();
-
-    public IEnumerable<ModifierCard> Modifiers => Line.OfType<ModifierCard>();
-
-    /// <summary>The Freeze that stopped them, which stays in front of them until the round ends.</summary>
-    public bool IsFrozenByCard => Line.Any(c => c is ActionCard { Kind: ActionKind.Freeze });
 }
 
 /// <summary>
@@ -41,7 +35,6 @@ public sealed record Flip7View
     public required Flip7Phase Phase { get; init; }
     public required Guid MyId { get; init; }
     public required IReadOnlyList<Flip7PlayerView> Players { get; init; }
-    public required bool IAmHost { get; init; }
     public required bool HasHostPowers { get; init; }
     public required bool IAmSpectator { get; init; }
     public required string? HostName { get; init; }
@@ -75,6 +68,12 @@ public sealed record Flip7View
     public bool CanStay => Me is { Line.Count: > 0 };
 
     public IReadOnlyList<Flip7PlayerView> Standings => [.. Players.OrderByDescending(p => p.Total).ThenBy(p => p.Name)];
+
+    /// <summary>The seats, as the shared player list wants them.</summary>
+    public IReadOnlyList<RosterEntry> Roster =>
+        [.. Players.Select(p => new RosterEntry(p.Id, p.Name, p.IsHost, p.IsConnected, p.IsSpectator, p.IsBenched))];
+
+    public Flip7PlayerView? Seat(Guid id) => Players.FirstOrDefault(p => p.Id == id);
 
     public static Flip7View Build(Flip7Room room, Guid viewerId)
     {
@@ -114,7 +113,6 @@ public sealed record Flip7View
             Phase = room.Phase,
             MyId = viewerId,
             Players = players,
-            IAmHost = me?.IsHost ?? false,
             HasHostPowers = (me?.IsHost ?? false) || host is null || !host.IsConnected,
             IAmSpectator = me?.IsSpectator ?? true,
             HostName = host?.Name,

@@ -1,0 +1,15 @@
+@* The two dead ends every game shares: the room went away, or it wouldn't have you. *@
+
+<div class="home">
+    <div class="home-card">
+        <h2>@Heading</h2>
+        <p>@Detail</p>
+        <a class="btn primary" href="/">Back to start</a>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required string Heading { get; set; }
+
+    [Parameter, EditorRequired] public required string Detail { get; set; }
+}

@@ -1,0 +1,37 @@
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+@* The frame around every game: the way back, the code to read out, and the link to paste into
+   the call. Only the wordmark differs. *@
+
+<header class="room-header">
+    <a class="logo small" href="/">@Logo</a>
+    <button class="room-code" title="Copy invite link" @onclick="Copy">
+        @Code <span class="copy-hint">@(_copied ? "copied!" : "copy link")</span>
+    </button>
+</header>
+
+@code {
+    [Parameter, EditorRequired] public required string Code { get; set; }
+
+    [Parameter, EditorRequired] public required RenderFragment Logo { get; set; }
+
+    private bool _copied;
+
+    private async Task Copy()
+    {
+        var link = Nav.ToAbsoluteUri($"/room/{Code}").ToString();
+        _copied = await JS.InvokeAsync<bool>("party.copyText", link);
+        if (_copied)
+        {
+            _ = ForgetLater();
+        }
+    }
+
+    private async Task ForgetLater()
+    {
+        await Task.Delay(2000);
+        _copied = false;
+        await InvokeAsync(StateHasChanged);
+    }
+}

@@ -28,14 +28,15 @@
         _ => "?",
     };
 
-    private string Title => Card switch
+    private string? Title => Card switch
     {
-        NumberCard n => $"{n.Value}",
+        // A number card's face is already its label; a tooltip repeating it is noise.
+        NumberCard => null,
         ModifierCard { Kind: ModifierKind.Times2 } => "×2 — doubles the sum of your number cards",
         ModifierCard m => $"+{m.PlusValue} points",
         ActionCard { Kind: ActionKind.Freeze } => "Freeze — banks their points and ends their round",
         ActionCard { Kind: ActionKind.FlipThree } => "Flip Three — they take the next three cards",
         ActionCard { Kind: ActionKind.SecondChance } => "Second Chance — cancels one bust",
-        _ => "",
+        _ => null,
     };
 }

@@ -180,14 +180,23 @@ public class RoomBaseTests
     [Test]
     public async Task The_host_role_prefers_someone_actually_playing()
     {
-        var room = Lobby3();
+        // The spectator has to sit BEFORE a player in the list, or this passes whether or not
+        // the preference exists.
+        var room = new TestRoom();
+        room.Join(Alice, "Alice");   // host
+        room.Join(Bob, "Bob");
+        room.Join(Carol, "Carol");
+        room.PlayerConnected(Alice);
+        room.PlayerConnected(Carol);
         room.Start();
-        var dave = Guid.NewGuid();
-        room.Join(dave, "Dave");   // spectator
+
+        // Bob is seat 1 and now watching; Carol is seat 2 and playing.
+        room.PlayerDisconnected(Bob);
+        room.BenchPlayer(Alice, Bob);
         room.GameFinished = true;
         room.Leave(Alice);
 
-        await Assert.That(room.Host!.Id).IsEqualTo(Bob);
+        await Assert.That(room.Host!.Id).IsEqualTo(Carol);
     }
 
     [Test]
@@ -227,7 +236,7 @@ public class RoomBaseTests
     }
 
     [Test]
-    public async Task Connection_changes_are_announced()
+    public async Task Dropping_is_announced()
     {
         // A turn game needs this: it can't be left waiting on someone who has gone.
         var room = Lobby3();
@@ -235,6 +244,39 @@ public class RoomBaseTests
         room.PlayerDisconnected(Bob);
 
         await Assert.That(room.ConnectionChanges).IsEquivalentTo(new[] { Bob });
+    }
+
+    [Test]
+    public async Task Arriving_is_announced_too()
+    {
+        var room = Lobby3();
+        room.ConnectionChanges.Clear();
+        room.PlayerConnected(Bob);
+
+        await Assert.That(room.ConnectionChanges).IsEquivalentTo(new[] { Bob });
+    }
+
+    [Test]
+    public async Task Nothing_is_announced_for_someone_who_was_never_here()
+    {
+        var room = Lobby3();
+        room.ConnectionChanges.Clear();
+        room.PlayerConnected(Guid.NewGuid());
+        room.PlayerDisconnected(Guid.NewGuid());
+
+        await Assert.That(room.ConnectionChanges).IsEmpty();
+    }
+
+    [Test]
+    public async Task Nothing_is_announced_for_a_disconnect_that_never_happened()
+    {
+        // Already at zero: there is no change to report.
+        var room = new TestRoom();
+        room.Join(Alice, "Alice");
+        room.ConnectionChanges.Clear();
+        room.PlayerDisconnected(Alice);
+
+        await Assert.That(room.ConnectionChanges).IsEmpty();
     }
 
     // ---- The sticky bench ----

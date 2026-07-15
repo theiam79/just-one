@@ -290,6 +290,7 @@ button.clue-card:disabled { cursor: default; }
 .badge { font-size: 0.8rem; }
 .badge.soft { color: var(--muted); font-size: 0.75rem; }
 .badge.ok { color: var(--ok); font-size: 0.75rem; }
+.badge.bad { color: var(--bad); font-size: 0.75rem; }
 
 /* ---- Recap / history ---- */
 .recap ul, .history ul { list-style: none; margin: 0.3rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
@@ -372,4 +373,3 @@ button.clue-card:disabled { cursor: default; }
 }
 .f7standing.me { outline: 1px solid var(--accent); }
 
-.badge.bad { background: var(--bad); color: #fff; }

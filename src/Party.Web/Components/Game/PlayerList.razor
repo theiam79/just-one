@@ -1,16 +1,16 @@
+@* Who's in the room. Shared by every game: the connection dot, the host star, watching/sitting
+   out, and the host's "sit out" control are the same wherever you are. Anything a game wants to
+   say against a name arrives through Badges, so this never learns about either game. *@
+
 <div class="player-list">
-    @foreach (var p in View.Players)
+    @foreach (var p in Seats)
     {
-        <div class="player @(p.IsConnected ? "" : "away") @(p.Id == View.MyId ? "me" : "")">
+        <div class="player @(p.IsConnected ? "" : "away") @(p.Id == MyId ? "me" : "")">
             <span class="dot @(p.IsConnected ? "on" : "off")" title="@(p.IsConnected ? "connected" : "away")"></span>
             <span class="player-name">@p.Name</span>
             @if (p.IsHost)
             {
                 <span class="badge" title="Host">★</span>
-            }
-            @if (p.IsGuesser)
-            {
-                <span class="badge" title="Guesser this round">🎯</span>
             }
             @if (p.IsBenched)
             {
@@ -20,33 +20,26 @@
             {
                 <span class="badge soft" title="Joins next game">watching</span>
             }
-            else if (View.HasHostPowers && !p.IsConnected && p.Id != View.MyId)
+            else if (HasHostPowers && !p.IsConnected && p.Id != MyId)
             {
-                <button class="btn tiny" title="Sit them out until they reconnect, instead of skipping them every round"
-                        @onclick="() => Act(g => g.BenchPlayer(View.MyId, p.Id))">sit out</button>
+                <button class="btn tiny" title="Sit them out until they reconnect, instead of working around them every round"
+                        @onclick="() => OnBench.InvokeAsync(p.Id)">sit out</button>
             }
-            @switch (p.ClueStatus)
-            {
-                case ClueStatus.Done:
-                    <span class="badge ok">✓ clue in</span>
-                    break;
-                case ClueStatus.Writing:
-                    <span class="badge soft">writing…</span>
-                    @if (View.HasHostPowers && p.Id != View.MyId)
-                    {
-                        <button class="btn tiny" title="Skip their clue so the round can continue"
-                                @onclick="() => Act(g => g.SkipPlayerClue(View.MyId, p.Id))">skip</button>
-                    }
-                    break;
-                case ClueStatus.Skipped:
-                    <span class="badge soft">skipped</span>
-                    break;
-            }
+            @Badges?.Invoke(p)
         </div>
     }
 </div>
 
 @code {
-    [Parameter, EditorRequired] public required RoomView View { get; set; }
-    [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
+    [Parameter, EditorRequired] public required IReadOnlyList<RosterEntry> Seats { get; set; }
+
+    [Parameter, EditorRequired] public required Guid MyId { get; set; }
+
+    [Parameter, EditorRequired] public required bool HasHostPowers { get; set; }
+
+    /// <summary>Sit an away player out — the host's one roster power, and the same in every game.</summary>
+    [Parameter] public EventCallback<Guid> OnBench { get; set; }
+
+    /// <summary>Whatever this game wants to show against a name.</summary>
+    [Parameter] public RenderFragment<RosterEntry>? Badges { get; set; }
 }

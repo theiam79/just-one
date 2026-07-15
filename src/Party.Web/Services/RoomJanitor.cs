@@ -34,7 +34,12 @@ public sealed class RoomJanitor(RoomManager rooms, TimeSpan? sweepInterval = nul
         }
     }
 
-    private void Sweep()
+    /// <summary>
+    /// One look round the rooms. Public so a test can prove the eviction rule without racing a
+    /// timer: whether activity holds a room open is the interesting part, and a keep-alive loop
+    /// against a real clock tests the scheduler more than it tests this.
+    /// </summary>
+    public void Sweep()
     {
         foreach (var handle in rooms.Rooms)
         {

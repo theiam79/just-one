@@ -61,6 +61,10 @@ public sealed record RoomView
 
     public int VisibleClueCount => Clues.Count(c => !c.Cancelled);
 
+    /// <summary>The seats, as the shared player list wants them.</summary>
+    public IReadOnlyList<RosterEntry> Roster =>
+        [.. Players.Select(p => new RosterEntry(p.Id, p.Name, p.IsHost, p.IsConnected, p.IsSpectator, p.IsBenched))];
+
     public static RoomView Build(GameRoom room, Guid viewerId)
     {
         var round = room.Round;

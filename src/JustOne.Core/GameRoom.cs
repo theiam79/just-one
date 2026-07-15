@@ -11,6 +11,9 @@ public sealed class GameRoom
     public const int CardsPerGame = 13;
     public const int WordsPerCard = 5;
     public const int MaxNameLength = 20;
+    public const int MinTimerSeconds = 15;
+    public const int MaxTimerSeconds = 300;
+    public const int DefaultTimerSeconds = 60;
 
     private readonly string[] _words;
     private readonly Random _rng;
@@ -47,6 +50,9 @@ public sealed class GameRoom
     public int CardsLeft => _deck.Count + (Phase is GamePhase.NumberPick or GamePhase.ClueWriting or GamePhase.ClueReview or GamePhase.Guessing or GamePhase.Judging ? 1 : 0);
 
     public Player? Host => _players.FirstOrDefault(p => p.IsHost);
+
+    /// <summary>How long the group's shared countdown runs for; set by the host in the lobby.</summary>
+    public int TimerSeconds { get; private set; } = DefaultTimerSeconds;
 
     // ---- Roster ----
 
@@ -141,6 +147,52 @@ public sealed class GameRoom
         {
             player.ConnectionCount--;
         }
+    }
+
+    // ---- Timer ----
+
+    /// <summary>Sets how long the shared countdown runs for. A lobby setting, so it can't
+    /// change under the group mid-round.</summary>
+    public void SetTimerSeconds(Guid callerId, int seconds)
+    {
+        RequirePhase(GamePhase.Lobby);
+        RequireHostPowers(callerId);
+        if (seconds is < MinTimerSeconds or > MaxTimerSeconds)
+        {
+            throw new GameRuleException($"Pick a timer between {MinTimerSeconds} and {MaxTimerSeconds} seconds.");
+        }
+
+        TimerSeconds = seconds;
+    }
+
+    /// <summary>
+    /// Starts the group's shared countdown for the phase in progress. Any player can start it
+    /// (and starting again restarts it) — it's a nudge to keep things moving, not a rule:
+    /// nothing happens automatically when it runs out, so nobody gets cut off.
+    /// </summary>
+    public void StartTimer(Guid callerId)
+    {
+        RequirePlayer(callerId);
+        if (Phase is not (GamePhase.ClueWriting or GamePhase.Guessing))
+        {
+            throw new GameRuleException("There's nothing to put a timer on right now.");
+        }
+
+        Round!.TimerPhase = Phase;
+        Round.TimerDeadline = DateTimeOffset.UtcNow.AddSeconds(TimerSeconds);
+    }
+
+    /// <summary>Clears the shared countdown early.</summary>
+    public void CancelTimer(Guid callerId)
+    {
+        RequirePlayer(callerId);
+        if (Round is null)
+        {
+            return;
+        }
+
+        Round.TimerPhase = null;
+        Round.TimerDeadline = null;
     }
 
     // ---- Game flow ----
@@ -496,6 +548,15 @@ public sealed class GameRoom
         if (Phase != phase)
         {
             throw new GameRuleException("That move isn't available right now.");
+        }
+    }
+
+    /// <summary>Anyone actually playing — including the guesser, unlike <see cref="RequireClueReviewer"/>.</summary>
+    private void RequirePlayer(Guid callerId)
+    {
+        if (GetPlayer(callerId).IsSpectator)
+        {
+            throw new GameRuleException("Spectators can't do that — you're in next game!");
         }
     }
 

@@ -41,6 +41,15 @@ public sealed record RoomView
     public required IReadOnlyList<RoundRecord> CompletedRounds { get; init; }
     public required IReadOnlyList<GameSummary> History { get; init; }
 
+    /// <summary>When the group's shared countdown runs out, or null if none is running for this phase.</summary>
+    public required DateTimeOffset? TimerDeadline { get; init; }
+
+    /// <summary>The configured countdown length, for the lobby setting and the start button.</summary>
+    public required int TimerSeconds { get; init; }
+
+    /// <summary>A countdown can be put on the phase in progress.</summary>
+    public bool CanUseTimer => Phase is (GamePhase.ClueWriting or GamePhase.Guessing) && !IAmSpectator;
+
     public int VisibleClueCount => Clues.Count(c => !c.Cancelled);
 
     public static RoomView Build(GameRoom room, Guid viewerId)
@@ -88,6 +97,9 @@ public sealed record RoomView
             Outcome = round?.Outcome,
             CompletedRounds = [.. room.CompletedRounds],
             History = [.. room.History],
+            // A countdown started for an earlier phase stops showing once the round moves on.
+            TimerDeadline = round is not null && round.TimerPhase == room.Phase ? round.TimerDeadline : null,
+            TimerSeconds = room.TimerSeconds,
         };
     }
 

@@ -3,6 +3,7 @@
     {
         <h2>Clues are being written…</h2>
         <p class="waiting">Look away from any screen sharing! Your friends are writing clues for you.</p>
+        <RoundTimer View="View" Act="Act" />
     }
     else if (View.IAmExpectedWriter)
     {
@@ -25,11 +26,13 @@
         {
             <p class="hint">Waiting for: @string.Join(", ", View.PendingWriters.Select(p => p.Name))</p>
         }
+        <RoundTimer View="View" Act="Act" />
     }
     else
     {
         <h2>Round @View.RoundNumber</h2>
         <p class="waiting">Clues are being written for @View.GuesserName — you'll play next game!</p>
+        <RoundTimer View="View" Act="Act" />
     }
 </div>
 

@@ -29,6 +29,22 @@
             <p class="hint">Anyone can start the countdown while clues are being written or guessed. It's just a nudge — nothing happens automatically when it runs out.</p>
         </div>
 
+        <div class="setting">
+            <span class="setting-label">Two clues each</span>
+            <div class="setting-options">
+                @foreach (var (mode, label) in TwoCluesChoices)
+                {
+                    <button class="btn tiny @(View.TwoCluesMode == mode ? "primary" : "ghost")"
+                            @onclick="() => Act(g => g.SetTwoCluesMode(View.MyId, mode))">@label</button>
+                }
+            </div>
+            <p class="hint">
+                With only a couple of clue-givers, one duplicate can wipe out most of the clues — so
+                at @GameRoom.TwoCluesMaxPlayers players or fewer, everyone writes two.
+                <strong>Auto</strong> does that for you; override it if you'd rather not.
+            </p>
+        </div>
+
         <button class="btn primary big" disabled="@(View.Players.Count < GameRoom.MinPlayers)"
                 @onclick="() => Act(g => g.StartGame(View.MyId))">
             Start game
@@ -49,4 +65,11 @@
     [Parameter, EditorRequired] public required Action<Action<GameRoom>> Act { get; set; }
 
     private static readonly int[] TimerChoices = [30, 60, 90, 120];
+
+    private static readonly (TwoCluesMode Mode, string Label)[] TwoCluesChoices =
+    [
+        (TwoCluesMode.Auto, "Auto"),
+        (TwoCluesMode.Always, "Always"),
+        (TwoCluesMode.Never, "Never"),
+    ];
 }

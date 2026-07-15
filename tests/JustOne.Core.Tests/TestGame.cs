@@ -15,7 +15,12 @@ internal static class TestGame
 
     public static GameRoom NewRoom(int seed = 42) => new("TEST", Words(), new Random(seed));
 
-    /// <summary>Alice (host), Bob, Carol in the lobby, all connected.</summary>
+    /// <summary>
+    /// Alice (host), Bob, Carol in the lobby, all connected.
+    /// Pinned to one clue per writer: three players would otherwise trip the small-group
+    /// variant, and these fixtures exist to exercise the ordinary one-clue round.
+    /// The variant has its own fixtures in <see cref="TwoCluesTests"/>.
+    /// </summary>
     public static GameRoom Lobby3(int seed = 42)
     {
         var room = NewRoom(seed);
@@ -25,6 +30,7 @@ internal static class TestGame
         room.PlayerConnected(Alice);
         room.PlayerConnected(Bob);
         room.PlayerConnected(Carol);
+        room.SetTwoCluesMode(Alice, TwoCluesMode.Never);
         return room;
     }
 
@@ -57,6 +63,12 @@ internal static class TestGame
         room.RevealClues(Bob);
         return room;
     }
+
+    /// <summary>The writer's one and only clue — asserts there is exactly one.</summary>
+    public static Clue Only(this Dictionary<Guid, List<Clue>> clues, Guid author) => clues[author].Single();
+
+    /// <summary>Every clue in the round, flattened across writers.</summary>
+    public static IEnumerable<Clue> All(this Dictionary<Guid, List<Clue>> clues) => clues.Values.SelectMany(c => c);
 
     public static GameRuleException ExpectRuleError(Action action)
     {

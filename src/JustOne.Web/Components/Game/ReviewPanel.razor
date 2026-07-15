@@ -18,7 +18,7 @@
                 <button class="clue-card @(clue.Cancelled ? "cancelled" : "") @(clue.AutoCancelled ? "locked" : "")"
                         disabled="@(View.IAmSpectator || clue.AutoCancelled)"
                         title="@(clue.AutoCancelled ? "Identical clues stay cancelled" : "Tap to toggle")"
-                        @onclick="() => Act(g => g.ToggleClueCancellation(View.MyId, clue.AuthorId))">
+                        @onclick="() => Act(g => g.ToggleClueCancellation(View.MyId, clue.AuthorId, clue.Index))">
                     <span class="clue-text">@clue.Text</span>
                     <span class="clue-author">@clue.AuthorName @(clue.AutoCancelled ? "· duplicate" : clue.ManuallyCancelled ? "· cancelled" : "")</span>
                 </button>

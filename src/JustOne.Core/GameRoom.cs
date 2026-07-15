@@ -11,6 +11,8 @@ public sealed class GameRoom
     public const int CardsPerGame = 13;
     public const int WordsPerCard = 5;
     public const int MaxNameLength = 20;
+    /// <summary>At or below this many players, <see cref="TwoCluesMode.Auto"/> asks for two clues each.</summary>
+    public const int TwoCluesMaxPlayers = 4;
     public const int MinTimerSeconds = 15;
     public const int MaxTimerSeconds = 300;
     public const int DefaultTimerSeconds = 60;
@@ -53,6 +55,9 @@ public sealed class GameRoom
 
     /// <summary>How long the group's shared countdown runs for; set by the host in the lobby.</summary>
     public int TimerSeconds { get; private set; } = DefaultTimerSeconds;
+
+    /// <summary>Whether clue-givers write two clues each; set by the host in the lobby.</summary>
+    public TwoCluesMode TwoCluesMode { get; private set; } = TwoCluesMode.Auto;
 
     // ---- Roster ----
 
@@ -200,7 +205,27 @@ public sealed class GameRoom
         }
     }
 
-    // ---- Timer ----
+    // ---- Settings ----
+
+    /// <summary>
+    /// Sets whether clue-givers write two clues each. A lobby setting, so the choice itself
+    /// can't change mid-game — though on <see cref="TwoCluesMode.Auto"/> the rule still follows
+    /// the table, so a round that starts short-handed asks for two even if the last asked for one.
+    /// </summary>
+    public void SetTwoCluesMode(Guid callerId, TwoCluesMode mode)
+    {
+        RequirePhase(GamePhase.Lobby);
+        RequireHostPowers(callerId);
+        TwoCluesMode = mode;
+    }
+
+    /// <summary>How many clues each writer owes, given how many are actually playing.</summary>
+    private int CluesPerWriterFor(int activePlayers) => TwoCluesMode switch
+    {
+        TwoCluesMode.Always => 2,
+        TwoCluesMode.Never => 1,
+        _ => activePlayers <= TwoCluesMaxPlayers ? 2 : 1,
+    };
 
     /// <summary>Sets how long the shared countdown runs for. A lobby setting, so it can't
     /// change under the group mid-round.</summary>
@@ -302,6 +327,10 @@ public sealed class GameRoom
             }
         }
 
+        // Fixed here, next to ExpectedWriters, so a roster change mid-round can't move the
+        // goalposts for someone already writing.
+        Round.CluesPerWriter = CluesPerWriterFor(_players.Count(p => !p.IsSpectator));
+
         if (Round.ExpectedWriters.Count == 0)
         {
             Resolve(RoundOutcome.Passed);
@@ -311,7 +340,16 @@ public sealed class GameRoom
         Phase = GamePhase.ClueWriting;
     }
 
-    public void SubmitClue(Guid callerId, string text)
+    /// <summary>Submits a writer's single clue. Only valid when one clue is owed this round.</summary>
+    public void SubmitClue(Guid callerId, string text) => SubmitClues(callerId, text);
+
+    /// <summary>
+    /// Submits all of a writer's clues for the round at once — one normally, two when playing
+    /// the small-group variant. All-at-once keeps a writer either done or not done, so the rest
+    /// of the round (finishing, skipping, taking back) needs no notion of a half-finished writer.
+    /// Re-submitting replaces the previous set.
+    /// </summary>
+    public void SubmitClues(Guid callerId, params string[] texts)
     {
         RequirePhase(GamePhase.ClueWriting);
         if (!Round!.ExpectedWriters.Contains(callerId))
@@ -319,21 +357,49 @@ public sealed class GameRoom
             throw new GameRuleException("You're not writing a clue this round.");
         }
 
-        var cleaned = ClueNormalizer.Clean(text);
-        var error = ClueNormalizer.ValidateWord(cleaned);
-        if (error is not null)
+        var required = Round.CluesPerWriter;
+        var cleaned = texts.Select(ClueNormalizer.Clean).Where(t => t.Length > 0).ToList();
+        if (cleaned.Count < required)
         {
-            throw new GameRuleException(error);
+            throw new GameRuleException(required == 1
+                ? "Enter a clue first."
+                : $"Write all {required} of your clues.");
         }
 
-        var normalized = ClueNormalizer.Normalize(cleaned);
-        if (normalized == ClueNormalizer.Normalize(Round.MysteryWord!))
+        if (cleaned.Count > required)
         {
-            throw new GameRuleException("Your clue can't be the mystery word itself.");
+            throw new GameRuleException(required == 1
+                ? "Just one clue this round."
+                : $"Only {required} clues this round.");
+        }
+
+        // With more than one box on screen, say which one is the problem.
+        for (var i = 0; i < cleaned.Count; i++)
+        {
+            var error = ClueNormalizer.ValidateWord(cleaned[i]);
+            if (error is not null)
+            {
+                throw new GameRuleException(required > 1 ? $"Clue {i + 1}: {error}" : error);
+            }
+        }
+
+        var normalized = cleaned.Select(ClueNormalizer.Normalize).ToList();
+        var mysteryAt = normalized.IndexOf(ClueNormalizer.Normalize(Round.MysteryWord!));
+        if (mysteryAt >= 0)
+        {
+            throw new GameRuleException(required > 1
+                ? $"Clue {mysteryAt + 1} can't be the mystery word itself."
+                : "Your clue can't be the mystery word itself.");
+        }
+
+        if (normalized.Distinct().Count() != normalized.Count)
+        {
+            throw new GameRuleException("Your clues need to be different from each other.");
         }
 
         Round.SkippedWriters.Remove(callerId);
-        Round.Clues[callerId] = new Clue { AuthorId = callerId, Text = cleaned, Normalized = normalized };
+        Round.Clues[callerId] = [.. cleaned.Zip(normalized,
+            (text, norm) => new Clue { AuthorId = callerId, Text = text, Normalized = norm })];
         TryFinishClueWriting();
     }
 
@@ -370,15 +436,21 @@ public sealed class GameRoom
         TryFinishClueWriting();
     }
 
-    public void ToggleClueCancellation(Guid callerId, Guid authorId)
+    /// <summary>
+    /// Flips one clue's manual cancellation. <paramref name="clueIndex"/> picks which of the
+    /// author's clues when the two-clue variant is in play; it defaults to their only one.
+    /// </summary>
+    public void ToggleClueCancellation(Guid callerId, Guid authorId, int clueIndex = 0)
     {
         RequirePhase(GamePhase.ClueReview);
         RequireClueReviewer(callerId);
-        if (!Round!.Clues.TryGetValue(authorId, out var clue))
+        if (!Round!.Clues.TryGetValue(authorId, out var clues)
+            || clueIndex < 0 || clueIndex >= clues.Count)
         {
             throw new GameRuleException("There's no clue from that player.");
         }
 
+        var clue = clues[clueIndex];
         if (clue.AutoCancelled)
         {
             throw new GameRuleException("Identical clues stay cancelled — that's the rule.");
@@ -575,7 +647,9 @@ public sealed class GameRoom
     private void ApplyAutoCancellation()
     {
         var mystery = ClueNormalizer.Normalize(Round!.MysteryWord!);
-        foreach (var group in Round.Clues.Values.GroupBy(c => c.Normalized))
+        // Across every clue in the round, not per author: with the two-clue variant a writer's
+        // clue can just as easily collide with the other writer's as with anyone else's.
+        foreach (var group in Round.Clues.Values.SelectMany(c => c).GroupBy(c => c.Normalized))
         {
             if (group.Count() > 1 || group.Key == mystery)
             {

@@ -1,29 +1,14 @@
 @using Party.Flip7
 @inherits RoomStage<Flip7Room>
-@inject IJSRuntime JS
-@inject NavigationManager Nav
 
 @if (RoomClosed)
 {
-    <div class="home">
-        <div class="home-card">
-            <h2>Room closed</h2>
-            <p>This room was closed after an hour of inactivity.</p>
-            <a class="btn primary" href="/">Back to start</a>
-        </div>
-    </div>
+    <RoomNotice Heading="Room closed" Detail="This room was closed after an hour of inactivity." />
 }
+@* Joining was refused — a full room, most likely. Say so, and offer a way out. *@
 else if (_view is null && Error is not null)
 {
-    @* Joining was refused — a full room, most likely. Say so, and offer a way out rather
-       than leaving them on a dead line of text. *@
-    <div class="home">
-        <div class="home-card">
-            <h2>Can't join this room</h2>
-            <p>@Error</p>
-            <a class="btn primary" href="/">Back to start</a>
-        </div>
-    </div>
+    <RoomNotice Heading="Can't join this room" Detail="@Error" />
 }
 else if (_view is null)
 {
@@ -32,12 +17,7 @@ else if (_view is null)
 else
 {
     <div class="room flip7">
-        <header class="room-header">
-            <a class="logo small" href="/">Flip <span class="accent">7</span></a>
-            <button class="room-code" title="Copy invite link" @onclick="CopyInvite">
-                @_view.Code <span class="copy-hint">@(_copied ? "copied!" : "copy link")</span>
-            </button>
-        </header>
+        <RoomChrome Code="@_view.Code"><Logo>Flip <span class="accent">7</span></Logo></RoomChrome>
 
         @if (Error is not null)
         {
@@ -49,7 +29,10 @@ else
             <div class="score-bar">
                 <div class="stat"><span class="stat-value">@_view.RoundNumber</span><span class="stat-label">round</span></div>
                 <div class="stat"><span class="stat-value">@(_view.Me?.Total ?? 0)</span><span class="stat-label">your points</span></div>
-                <div class="stat"><span class="stat-value">@_view.DeckCount</span><span class="stat-label">cards left</span></div>
+                @if (_view.Phase is not Flip7Phase.GameOver)
+                {
+                    <div class="stat"><span class="stat-value">@_view.DeckCount</span><span class="stat-label">cards left</span></div>
+                }
             </div>
         }
 
@@ -77,41 +60,49 @@ else
             <Flip7Table View="_view" />
         }
 
-        @if (_view.Phase is Flip7Phase.Lobby)
-        {
-            <div class="player-list">
-                @foreach (var p in _view.Players)
+        @* Every phase, not just the lobby: sitting out an away player is a mid-game control,
+           and a mid-game joiner has to be able to see that they are watching. *@
+        <PlayerList Seats="@_view.Roster" MyId="@_view.MyId" HasHostPowers="@_view.HasHostPowers"
+                    OnBench="@(id => Act(r => r.BenchPlayer(_view.MyId, id)))">
+            <Badges Context="seat">
+                @{ var p = _view.Seat(seat.Id); }
+                @if (p is not null && _view.Phase is not Flip7Phase.Lobby && !p.IsSpectator)
                 {
-                    <div class="player @(p.IsConnected ? "" : "away") @(p.Id == _view.MyId ? "me" : "")">
-                        <span class="dot @(p.IsConnected ? "on" : "off")" title="@(p.IsConnected ? "connected" : "away")"></span>
-                        <span class="player-name">@p.Name</span>
-                        @if (p.IsHost)
+                    @if (p.Id == _view.Flip7PlayerId)
+                    {
+                        <span class="badge ok" title="Seven different numbers">FLIP 7!</span>
+                    }
+                    else
+                    {
+                        @switch (p.Status)
                         {
-                            <span class="badge" title="Host">★</span>
+                            case RoundStatus.Busted:
+                                <span class="badge bad" title="Two of the same number">bust</span>
+                                break;
+                            case RoundStatus.Frozen:
+                                <span class="badge soft" title="Frozen — points banked">frozen</span>
+                                break;
+                            case RoundStatus.Stayed:
+                                <span class="badge soft" title="Stayed — points banked">stayed</span>
+                                break;
+                            case RoundStatus.Active when p.IsTheirTurn:
+                                <span class="badge" title="It's their go">their go</span>
+                                break;
                         }
-                        @if (p.IsBenched)
-                        {
-                            <span class="badge soft" title="Sitting out while away; back in when they reconnect">sitting out</span>
-                        }
-                        else if (p.IsSpectator)
-                        {
-                            <span class="badge soft" title="Joins next game">watching</span>
-                        }
-                        else if (_view.HasHostPowers && !p.IsConnected && p.Id != _view.MyId)
-                        {
-                            <button class="btn tiny" title="Sit them out until they reconnect"
-                                    @onclick="() => Act(r => r.BenchPlayer(_view.MyId, p.Id))">sit out</button>
-                        }
-                    </div>
+                    }
+                    @if (p.HasSecondChance)
+                    {
+                        <span class="badge soft" title="Holds a Second Chance — cancels one bust">♻</span>
+                    }
+                    <span class="f7total" title="Total this game">@p.Total</span>
                 }
-            </div>
-        }
+            </Badges>
+        </PlayerList>
     </div>
 }
 
 @code {
     private Flip7View? _view;
-    private bool _copied;
 
     protected override void JoinRoom(Flip7Room room, Guid playerId, string name)
     {
@@ -125,21 +116,4 @@ else
         _view = handle.Read(r => Flip7View.Build(r, playerId));
 
     protected override void ClearView() => _view = null;
-
-    private async Task CopyInvite()
-    {
-        var link = Nav.ToAbsoluteUri($"/room/{_view!.Code}").ToString();
-        _copied = await JS.InvokeAsync<bool>("party.copyText", link);
-        if (_copied)
-        {
-            _ = ResetCopiedLater();
-        }
-    }
-
-    private async Task ResetCopiedLater()
-    {
-        await Task.Delay(2000);
-        _copied = false;
-        await InvokeAsync(StateHasChanged);
-    }
 }

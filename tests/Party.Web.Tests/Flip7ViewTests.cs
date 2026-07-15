@@ -144,8 +144,134 @@ public class Flip7ViewTests
         room.Hit(Bob);
         room.ChooseTarget(Bob, Carol);
 
+        // The table renders Line, so that is what has to carry the Freeze.
         var carol = Flip7View.Build(room, Alice).Players.Single(p => p.Id == Carol);
         await Assert.That(carol.Status).IsEqualTo(RoundStatus.Frozen);
-        await Assert.That(carol.IsFrozenByCard).IsTrue();
+        await Assert.That(carol.Line).Contains(new ActionCard(ActionKind.Freeze));
+    }
+
+    // The view is built positionally from a record with six consecutive bools, and the panels
+    // read these fields to decide what to say. Each of these pins one that a mutation could
+    // otherwise silently flip.
+
+    [Test]
+    public async Task The_choice_kind_says_which_card_is_being_placed()
+    {
+        // The turn panel picks its wording from this alone: null it, and every Second Chance
+        // prompt silently reads as a Flip Three.
+        var room = Room(new NumberCard(1), new NumberCard(2), new NumberCard(3), new ActionCard(ActionKind.Freeze));
+        room.Hit(Bob);
+
+        await Assert.That(Flip7View.Build(room, Bob).MyChoiceKind).IsEqualTo(ChoiceKind.ActionTarget);
+    }
+
+    [Test]
+    public async Task A_surplus_second_chance_is_a_different_kind_of_choice()
+    {
+        var room = Room(
+            new NumberCard(1), new NumberCard(2), new NumberCard(3),
+            new ActionCard(ActionKind.SecondChance), new NumberCard(9), new NumberCard(8),
+            new ActionCard(ActionKind.SecondChance));
+        room.Hit(Bob);
+        room.Hit(Carol);
+        room.Hit(Alice);
+        room.Hit(Bob);
+
+        await Assert.That(Flip7View.Build(room, Bob).MyChoiceKind).IsEqualTo(ChoiceKind.SecondChanceRecipient);
+    }
+
+    [Test]
+    public async Task The_round_number_and_deck_are_reported()
+    {
+        var room = Room(new NumberCard(1), new NumberCard(2), new NumberCard(3));
+        var view = Flip7View.Build(room, Alice);
+
+        await Assert.That(view.RoundNumber).IsEqualTo(1);
+        await Assert.That(view.DeckCount).IsEqualTo(room.DeckCount);
+        await Assert.That(view.DeckCount).IsGreaterThan(0);
+    }
+
+    [Test]
+    public async Task The_code_and_the_viewer_are_reported()
+    {
+        var view = Flip7View.Build(Room(new NumberCard(1), new NumberCard(2), new NumberCard(3)), Bob);
+
+        await Assert.That(view.Code).IsEqualTo("TEST");
+        await Assert.That(view.MyId).IsEqualTo(Bob);
+        await Assert.That(view.HostName).IsEqualTo("Alice");
+    }
+
+    [Test]
+    public async Task A_watcher_is_marked_as_one_and_a_player_is_not()
+    {
+        var room = Room(new NumberCard(1), new NumberCard(2), new NumberCard(3));
+        var dave = Guid.Parse("00000000-0000-0000-0000-000000000004");
+        room.Join(dave, "Dave");   // mid-game: watches
+
+        var view = Flip7View.Build(room, dave);
+        await Assert.That(view.IAmSpectator).IsTrue();
+        await Assert.That(view.Players.Single(p => p.Id == dave).IsSpectator).IsTrue();
+        await Assert.That(view.Players.Single(p => p.Id == Bob).IsSpectator).IsFalse();
+        await Assert.That(Flip7View.Build(room, Bob).IAmSpectator).IsFalse();
+    }
+
+    [Test]
+    public async Task A_player_sat_out_is_marked_as_benched()
+    {
+        var room = Room(new NumberCard(1), new NumberCard(2), new NumberCard(3));
+        room.PlayerDisconnected(Carol);
+        room.BenchPlayer(Alice, Carol);
+
+        var carol = Flip7View.Build(room, Alice).Players.Single(p => p.Id == Carol);
+        await Assert.That(carol.IsBenched).IsTrue();
+        await Assert.That(carol.IsConnected).IsFalse();
+        await Assert.That(Flip7View.Build(room, Alice).Players.Single(p => p.Id == Bob).IsBenched).IsFalse();
+    }
+
+    [Test]
+    public async Task The_flip7_player_is_named()
+    {
+        // Bob leads and takes seven different numbers.
+        var room = Room(
+            new NumberCard(1), new NumberCard(2), new NumberCard(3),
+            new NumberCard(4), new NumberCard(9),
+            new NumberCard(5), new NumberCard(10),
+            new NumberCard(6), new NumberCard(11),
+            new NumberCard(7), new NumberCard(12),
+            new NumberCard(8), new NumberCard(0),
+            new NumberCard(9));
+
+        // Bob leads the turn order, so he takes one before the others bow out.
+        room.Hit(Bob);
+        room.Stay(Carol);
+        room.Stay(Alice);
+        for (var i = 0; i < 5; i++)
+        {
+            room.Hit(Bob);
+        }
+
+        await Assert.That(Flip7View.Build(room, Alice).Flip7PlayerId).IsEqualTo(Bob);
+    }
+
+    [Test]
+    public async Task Nobody_is_the_flip7_player_or_the_winner_by_default()
+    {
+        var room = Room(new NumberCard(1), new NumberCard(2), new NumberCard(3));
+        var view = Flip7View.Build(room, Alice);
+
+        await Assert.That(view.Flip7PlayerId).IsNull();
+        await Assert.That(view.WinnerId).IsNull();
+    }
+
+    [Test]
+    public async Task The_roster_carries_every_seat_through_to_the_shared_list()
+    {
+        var room = Room(new NumberCard(1), new NumberCard(2), new NumberCard(3));
+        room.PlayerDisconnected(Carol);
+
+        var roster = Flip7View.Build(room, Alice).Roster;
+        await Assert.That(roster.Select(r => r.Name)).IsEquivalentTo(new[] { "Alice", "Bob", "Carol" });
+        await Assert.That(roster.Single(r => r.Id == Alice).IsHost).IsTrue();
+        await Assert.That(roster.Single(r => r.Id == Carol).IsConnected).IsFalse();
     }
 }

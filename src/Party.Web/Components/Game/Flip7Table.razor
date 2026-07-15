@@ -19,27 +19,22 @@
                 {
                     <span class="badge" title="Dealer this round">deals</span>
                 }
-                @if (p.Id == View.Flip7PlayerId)
+            @* No Flip 7 badge here: hitting one ends the round before any circuit re-renders,
+               and this table is only shown while a round is live. The result panel says it. *@
+                @switch (p.Status)
                 {
-                    <span class="badge ok" title="Seven different numbers">FLIP 7!</span>
-                }
-                else
-                {
-                    @switch (p.Status)
-                    {
-                        case RoundStatus.Busted:
-                            <span class="badge bad" title="Two of the same number">bust</span>
-                            break;
-                        case RoundStatus.Frozen:
-                            <span class="badge soft" title="Frozen — points banked">frozen</span>
-                            break;
-                        case RoundStatus.Stayed:
-                            <span class="badge soft" title="Stayed — points banked">stayed</span>
-                            break;
-                        case RoundStatus.Active when p.IsTheirTurn:
-                            <span class="badge" title="It's their go">their go</span>
-                            break;
-                    }
+                    case RoundStatus.Busted:
+                        <span class="badge bad" title="Two of the same number">bust</span>
+                        break;
+                    case RoundStatus.Frozen:
+                        <span class="badge soft" title="Frozen — points banked">frozen</span>
+                        break;
+                    case RoundStatus.Stayed:
+                        <span class="badge soft" title="Stayed — points banked">stayed</span>
+                        break;
+                    case RoundStatus.Active when p.IsTheirTurn:
+                        <span class="badge" title="It's their go">their go</span>
+                        break;
                 }
                 <span class="f7total" title="Total this game">@p.Total</span>
             </div>

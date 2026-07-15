@@ -3,7 +3,7 @@
 <div class="phase-card">
     @if (View.Phase is Flip7Phase.GameOver)
     {
-        <h2>@(Winner?.Name ?? "Nobody") wins on @(Winner?.Total)</h2>
+        <h2>@Winner!.Name wins on @Winner.Total</h2>
     }
     else if (View.Flip7PlayerId is { } id)
     {
@@ -48,7 +48,7 @@
         @if (View.WinnerId is null && View.Standings.Any(p => p.Total >= Flip7Rules.WinningScore))
         {
             <p class="hint">
-                Two players are level past @Flip7Rules.WinningScore, so everyone plays another round.
+                @Tied players are level past @Flip7Rules.WinningScore, so everyone plays another round.
             </p>
         }
     }
@@ -63,6 +63,9 @@
     [Parameter, EditorRequired] public required Action<Action<Flip7Room>> Act { get; set; }
 
     private Flip7PlayerView? Winner => View.Players.FirstOrDefault(p => p.Id == View.WinnerId);
+
+    /// <summary>How many are level at the top — any number of them can tie, not just two.</summary>
+    private int Tied => View.Standings.Count(p => p.Total == View.Standings.Max(q => q.Total));
 
     private string Name(Guid id) => View.Players.FirstOrDefault(p => p.Id == id)?.Name ?? "Someone";
 }

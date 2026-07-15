@@ -1,28 +1,13 @@
 @inherits RoomStage<GameRoom>
-@inject IJSRuntime JS
-@inject NavigationManager Nav
 
 @if (RoomClosed)
 {
-    <div class="home">
-        <div class="home-card">
-            <h2>Room closed</h2>
-            <p>This room was closed after an hour of inactivity.</p>
-            <a class="btn primary" href="/">Back to start</a>
-        </div>
-    </div>
+    <RoomNotice Heading="Room closed" Detail="This room was closed after an hour of inactivity." />
 }
+@* Joining was refused — a full room, most likely. Say so, and offer a way out. *@
 else if (_view is null && Error is not null)
 {
-    @* Joining was refused — a full room, most likely. Say so, and offer a way out rather
-       than leaving them on a dead line of text. *@
-    <div class="home">
-        <div class="home-card">
-            <h2>Can't join this room</h2>
-            <p>@Error</p>
-            <a class="btn primary" href="/">Back to start</a>
-        </div>
-    </div>
+    <RoomNotice Heading="Can't join this room" Detail="@Error" />
 }
 else if (_view is null)
 {
@@ -31,12 +16,7 @@ else if (_view is null)
 else
 {
     <div class="room">
-        <header class="room-header">
-            <a class="logo small" href="/">Just <span class="accent">One</span></a>
-            <button class="room-code" title="Copy invite link" @onclick="CopyInvite">
-                @_view.Code <span class="copy-hint">@(_copied ? "copied!" : "copy link")</span>
-            </button>
-        </header>
+        <RoomChrome Code="@_view.Code"><Logo>Just <span class="accent">One</span></Logo></RoomChrome>
 
         @if (Error is not null)
         {
@@ -84,13 +64,38 @@ else
             </button>
         }
 
-        <PlayerList View="_view" Act="Act" />
+        <PlayerList Seats="@_view.Roster" MyId="@_view.MyId" HasHostPowers="@_view.HasHostPowers"
+                    OnBench="@(id => Act(g => g.BenchPlayer(_view.MyId, id)))">
+            <Badges Context="seat">
+                @{ var p = _view.Players.First(x => x.Id == seat.Id); }
+                @if (p.IsGuesser)
+                {
+                    <span class="badge" title="Guesser this round">🎯</span>
+                }
+                @switch (p.ClueStatus)
+                {
+                    case ClueStatus.Done:
+                        <span class="badge ok">✓ clue in</span>
+                        break;
+                    case ClueStatus.Writing:
+                        <span class="badge soft">writing…</span>
+                        @if (_view.HasHostPowers && p.Id != _view.MyId)
+                        {
+                            <button class="btn tiny" title="Skip their clue so the round can continue"
+                                    @onclick="() => Act(g => g.SkipPlayerClue(_view.MyId, p.Id))">skip</button>
+                        }
+                        break;
+                    case ClueStatus.Skipped:
+                        <span class="badge soft">skipped</span>
+                        break;
+                }
+            </Badges>
+        </PlayerList>
     </div>
 }
 
 @code {
     private RoomView? _view;
-    private bool _copied;
 
     protected override void JoinRoom(GameRoom room, Guid playerId, string name)
     {
@@ -104,21 +109,4 @@ else
         _view = handle.Read(g => RoomView.Build(g, playerId));
 
     protected override void ClearView() => _view = null;
-
-    private async Task CopyInvite()
-    {
-        var link = Nav.ToAbsoluteUri($"/room/{_view!.Code}").ToString();
-        _copied = await JS.InvokeAsync<bool>("party.copyText", link);
-        if (_copied)
-        {
-            _ = ResetCopiedLater();
-        }
-    }
-
-    private async Task ResetCopiedLater()
-    {
-        await Task.Delay(2000);
-        _copied = false;
-        await InvokeAsync(StateHasChanged);
-    }
 }

@@ -46,10 +46,6 @@
                 Stay@(View.CanStay ? $" on {Me!.RoundScore}" : "")
             </button>
         </div>
-        @if (!View.CanStay)
-        {
-            <p class="hint">You can only stay with a card in front of you.</p>
-        }
     }
     else if (View.IAmSpectator)
     {

@@ -17,14 +17,51 @@ namespace Party.Core;
 public abstract class RoomBase(string code)
 {
     private readonly List<Player> _players = [];
+    private readonly List<ChatMessage> _chat = [];
+    private int _chatSeq;
 
     public const int MaxNameLength = 20;
+
+    /// <summary>Longest a single chat message may be; anything over is trimmed to fit.</summary>
+    public const int MaxChatLength = 500;
+
+    /// <summary>How many recent messages a room keeps. Old ones fall off — chat is ephemeral.</summary>
+    private const int ChatHistory = 200;
 
     public string Code { get; } = code;
 
     public IReadOnlyList<Player> Players => _players;
 
     public Player? Host => _players.FirstOrDefault(p => p.IsHost);
+
+    /// <summary>The room's chat, oldest first. Shared by every game — it's just people talking.</summary>
+    public IReadOnlyList<ChatMessage> Chat => _chat;
+
+    /// <summary>
+    /// Posts a chat message from someone in the room. Blank messages are ignored and over-long
+    /// ones are trimmed, so this never rejects a real attempt to talk — anyone seated or watching
+    /// can chat.
+    /// </summary>
+    public void PostChat(Guid callerId, string text)
+    {
+        var sender = GetPlayer(callerId);   // must be in the room to talk in it
+        text = text.Trim();
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        if (text.Length > MaxChatLength)
+        {
+            text = text[..MaxChatLength];
+        }
+
+        _chat.Add(new ChatMessage(_chatSeq++, sender.Id, sender.Name, text));
+        if (_chat.Count > ChatHistory)
+        {
+            _chat.RemoveAt(0);
+        }
+    }
 
     /// <summary>Fewest players this game will start with.</summary>
     protected abstract int MinSeats { get; }

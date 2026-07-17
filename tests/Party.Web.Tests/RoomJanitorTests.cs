@@ -84,7 +84,7 @@ public class RoomJanitorTests
         Sweep(manager);
 
         var error = Assert.Throws<Party.Core.GameRuleException>(() => handle.Mutate(_ => { }));
-        await Assert.That(error!.Message).Contains("closed for inactivity");
+        await Assert.That(error!.Message).Contains("closed");
     }
 
     [Test]

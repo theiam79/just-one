@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.Extensions.DependencyInjection;
 using Party.Flip7;
 using Party.Web.Services;
 
@@ -21,11 +22,14 @@ public class RoomStageTests
         return new RoomHandle<Flip7Room>("TEST", GameType.Flip7, new Flip7Room("TEST", _ => deck, new Random(42)));
     }
 
-    private static IRenderedComponent<TestStage> Render(BunitContext ctx, RoomHandle<Flip7Room> handle, Guid id, string name) =>
-        ctx.Render<TestStage>(p => p
+    private static IRenderedComponent<TestStage> Render(BunitContext ctx, RoomHandle<Flip7Room> handle, Guid id, string name)
+    {
+        ctx.Services.AddSingleton(new RoomManager());   // the base injects it to close the room
+        return ctx.Render<TestStage>(p => p
             .Add(x => x.Handle, handle)
             .Add(x => x.PlayerId, id)
             .Add(x => x.PlayerName, name));
+    }
 
     [Test]
     public async Task Rendering_a_stage_puts_you_in_the_room()
@@ -172,6 +176,80 @@ public class RoomStageTests
 
         await Assert.That(stage.FindAll(".closed")).Count().IsEqualTo(1);
         await Assert.That(stage.FindAll(".phase")).IsEmpty();
+    }
+
+    [Test]
+    public async Task The_host_can_close_the_room_for_everyone()
+    {
+        using var ctx = new BunitContext();
+        var handle = Handle();
+        var stage = Render(ctx, handle, Alice, "Alice");   // Alice joins first, so she's host
+
+        await stage.InvokeAsync(() => stage.Instance.Close());
+
+        await Assert.That(handle.IsClosed).IsTrue();
+        await Assert.That(handle.CloseReason).IsEqualTo(RoomCloseReason.HostClosed);
+        await Assert.That(stage.Find(".closed").TextContent).Contains("host");
+    }
+
+    [Test]
+    public async Task A_non_host_cannot_close_while_the_host_is_here()
+    {
+        using var ctx = new BunitContext();
+        var handle = Handle();
+        handle.Mutate(r =>
+        {
+            r.Join(Alice, "Alice");        // Alice is host, and present
+            r.PlayerConnected(Alice);
+            r.Join(Bob, "Bob");
+            r.PlayerConnected(Bob);
+        });
+        var stage = Render(ctx, handle, Bob, "Bob");   // Bob is not the host
+
+        await stage.InvokeAsync(() => stage.Instance.Close());
+
+        await Assert.That(handle.IsClosed).IsFalse();
+        await Assert.That(stage.FindAll(".closed")).IsEmpty();
+    }
+
+    [Test]
+    public async Task Anyone_can_close_once_the_host_is_away()
+    {
+        using var ctx = new BunitContext();
+        var handle = Handle();
+        handle.Mutate(r =>
+        {
+            r.Join(Alice, "Alice");        // Alice is host
+            r.PlayerConnected(Alice);
+            r.Join(Bob, "Bob");
+            r.PlayerConnected(Bob);
+            r.PlayerDisconnected(Alice);   // ...but she's wandered off, so anyone may drive
+        });
+        var stage = Render(ctx, handle, Bob, "Bob");
+
+        await stage.InvokeAsync(() => stage.Instance.Close());
+
+        await Assert.That(handle.IsClosed).IsTrue();
+    }
+
+    [Test]
+    public async Task Closing_removes_the_room_from_the_manager()
+    {
+        // Use a manager-created room so Rooms.Remove is actually exercised, not a no-op.
+        using var ctx = new BunitContext();
+        var rooms = new RoomManager();
+        ctx.Services.AddSingleton(rooms);
+        var handle = (RoomHandle<Flip7Room>)rooms.CreateRoom(GameType.Flip7);
+
+        var stage = ctx.Render<TestStage>(p => p
+            .Add(x => x.Handle, handle)
+            .Add(x => x.PlayerId, Alice)
+            .Add(x => x.PlayerName, "Alice"));   // Alice joins first, so she's host
+
+        await stage.InvokeAsync(() => stage.Instance.Close());
+
+        await Assert.That(handle.IsClosed).IsTrue();
+        await Assert.That(rooms.TryGetRoom(handle.Code, out _)).IsFalse();
     }
 
     [Test]

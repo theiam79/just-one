@@ -100,7 +100,7 @@ public class RoomHandleTests
         handle.Close();
 
         var error = Assert.Throws<GameRuleException>(() => handle.Mutate(r => r.Value = 1));
-        await Assert.That(error!.Message).Contains("closed for inactivity");
+        await Assert.That(error!.Message).Contains("closed");
     }
 
     [Test]

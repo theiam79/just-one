@@ -26,6 +26,9 @@ internal sealed class TestStage : RoomStage<Flip7Room>
 
     public void Dismiss() => DismissError();
 
+    /// <summary>Closes the room exactly as the header's control would.</summary>
+    public void Close() => CloseRoom();
+
     protected override void JoinRoom(Flip7Room room, Guid playerId, string name)
     {
         room.Join(playerId, name);
@@ -45,7 +48,7 @@ internal sealed class TestStage : RoomStage<Flip7Room>
 
         if (RoomClosed)
         {
-            builder.AddMarkupContent(0, "<div class=\"closed\"></div>");
+            builder.AddMarkupContent(0, $"<div class=\"closed\">{ClosedDetail}</div>");
             return;
         }
 

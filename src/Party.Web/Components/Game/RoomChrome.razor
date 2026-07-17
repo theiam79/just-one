@@ -6,9 +6,27 @@
 
 <header class="room-header">
     <a class="logo small" href="/">@Logo</a>
-    <button class="room-code" title="Copy invite link" @onclick="Copy">
-        @Code <span class="copy-hint">@(_copied ? "copied!" : "copy link")</span>
-    </button>
+    <div class="room-header-actions">
+        <button class="room-code" title="Copy invite link" @onclick="Copy">
+            @Code <span class="copy-hint">@(_copied ? "copied!" : "copy link")</span>
+        </button>
+        @if (CanClose)
+        {
+            @if (_confirmingClose)
+            {
+                <span class="close-confirm">
+                    <span>End for everyone?</span>
+                    <button class="btn tiny danger" @onclick="ConfirmClose">Close</button>
+                    <button class="btn tiny ghost" @onclick="() => _confirmingClose = false">Cancel</button>
+                </span>
+            }
+            else
+            {
+                <button class="btn tiny ghost" title="End the room for everyone"
+                        @onclick="() => _confirmingClose = true">Close room</button>
+            }
+        }
+    </div>
 </header>
 
 @code {
@@ -16,7 +34,21 @@
 
     [Parameter, EditorRequired] public required RenderFragment Logo { get; set; }
 
+    /// <summary>Show the host's close-room control. Off for everyone else.</summary>
+    [Parameter] public bool CanClose { get; set; }
+
+    /// <summary>Raised when the host confirms closing the room.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
     private bool _copied;
+
+    private bool _confirmingClose;
+
+    private async Task ConfirmClose()
+    {
+        _confirmingClose = false;
+        await OnClose.InvokeAsync();
+    }
 
     private async Task Copy()
     {

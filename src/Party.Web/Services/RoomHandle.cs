@@ -2,6 +2,13 @@ using Party.Core;
 
 namespace Party.Web.Services;
 
+/// <summary>Why a room shut: the janitor's idle sweep, or a host ending it on purpose.</summary>
+public enum RoomCloseReason
+{
+    Inactivity,
+    HostClosed,
+}
+
 /// <summary>
 /// Serializes all access to one room and fans out change notifications to every subscribed
 /// circuit.
@@ -36,13 +43,17 @@ public abstract class RoomHandle
 
     public bool IsClosed { get; private set; }
 
+    /// <summary>Why the room closed. Only meaningful once <see cref="IsClosed"/> is true.</summary>
+    public RoomCloseReason CloseReason { get; private set; }
+
     public event Action? Changed;
 
-    public void Close()
+    public void Close(RoomCloseReason reason = RoomCloseReason.Inactivity)
     {
         lock (Gate)
         {
             IsClosed = true;
+            CloseReason = reason;
         }
 
         RaiseChanged();
@@ -52,7 +63,7 @@ public abstract class RoomHandle
     {
         if (IsClosed)
         {
-            throw new GameRuleException("This room has been closed for inactivity.");
+            throw new GameRuleException("This room has been closed.");
         }
     }
 

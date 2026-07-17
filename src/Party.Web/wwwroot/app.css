@@ -394,6 +394,20 @@ button.clue-card:disabled { cursor: default; }
 .f7card.act { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 .f7card.faded { opacity: 0.45; }
 
+/* ---- Flip 7 round log ---- */
+.f7log { margin-top: 0.9rem; background: var(--surface); border: 1px solid #2a3047; border-radius: var(--radius); padding: 0.6rem 0.75rem; }
+.f7log-head { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.4rem; }
+.f7log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; max-height: 12rem; overflow-y: auto; }
+.f7log-line { font-size: 0.85rem; line-height: 1.35; color: var(--text); padding-left: 0.6rem; border-left: 2px solid transparent; }
+.f7log-line.draw { color: var(--muted); }
+.f7log-line.bust { border-left-color: var(--bad); color: #ffb9c1; }
+.f7log-line.flip7 { border-left-color: var(--ok); color: var(--ok); font-weight: 700; }
+.f7log-line.freeze { border-left-color: #7fd7ff; }
+.f7log-line.flip-three { border-left-color: #bb86ff; }
+.f7log-line.second-chance { border-left-color: var(--ok); }
+.f7log-line.stay { border-left-color: #5a5f76; }
+.f7log-line.info { color: var(--muted); font-style: italic; }
+
 .f7standings { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.75rem 0; }
 .f7standing {
   display: flex; align-items: center; gap: 0.5rem;

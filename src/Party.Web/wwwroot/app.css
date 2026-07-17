@@ -420,6 +420,23 @@ button.clue-card:disabled { cursor: default; }
 .f7log-line.stay { border-left-color: #5a5f76; }
 .f7log-line.info { color: var(--muted); font-style: italic; }
 
+/* ---- Confetti ---- */
+.confetti { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 50; }
+.confetti-bit {
+  position: absolute; top: -6%; border-radius: 2px; opacity: 0;
+  animation-name: confetti-fall; animation-timing-function: cubic-bezier(0.3, 0.1, 0.5, 1);
+  animation-iteration-count: 1; animation-fill-mode: forwards;
+}
+@keyframes confetti-fall {
+  0%   { top: -6%; opacity: 1; transform: rotate(0) scale(1); }
+  100% { top: 106%; opacity: 0.85; transform: rotate(900deg) scale(0.9); }
+}
+/* Motion-averse players get no falling pieces at all. */
+@media (prefers-reduced-motion: reduce) { .confetti { display: none; } }
+
+.confetti-toggle { display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.9rem; color: var(--muted); font-size: 0.8rem; cursor: pointer; }
+.confetti-toggle input { width: auto; }
+
 .f7standings { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.75rem 0; }
 .f7standing {
   display: flex; align-items: center; gap: 0.5rem;

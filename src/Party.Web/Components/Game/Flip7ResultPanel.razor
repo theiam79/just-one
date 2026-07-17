@@ -1,4 +1,7 @@
 @using Party.Flip7
+@inject IJSRuntime JS
+
+<Confetti Active="@(_prefRead && _confetti && Celebrate)" />
 
 <div class="phase-card">
     @if (View.Phase is Flip7Phase.GameOver)
@@ -56,11 +59,42 @@
     {
         <p class="hint">Waiting for @(View.HostName ?? "the host") to deal the next round…</p>
     }
+
+    <label class="confetti-toggle" title="Turn the celebration on or off for this browser">
+        <input type="checkbox" checked="@(_prefRead && _confetti)" @onchange="ToggleConfetti" />
+        <span>🎉 confetti</span>
+    </label>
 </div>
 
 @code {
     [Parameter, EditorRequired] public required Flip7View View { get; set; }
     [Parameter, EditorRequired] public required Action<Action<Flip7Room>> Act { get; set; }
+
+    private const string ConfettiPref = "party-confetti";
+
+    private bool _confetti = true;
+    private bool _prefRead;
+
+    /// <summary>The two moments worth celebrating: a Flip 7, and winning the game.</summary>
+    private bool Celebrate => View.Phase is Flip7Phase.GameOver || View.Flip7PlayerId is not null;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // localStorage isn't there to read until the component is interactive, so the burst waits
+        // for the preference (_prefRead) rather than flashing on for anyone who muted it.
+        if (firstRender)
+        {
+            _confetti = await JS.InvokeAsync<bool>("party.getFlag", ConfettiPref, true);
+            _prefRead = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleConfetti(ChangeEventArgs e)
+    {
+        _confetti = e.Value is true;
+        await JS.InvokeVoidAsync("party.setFlag", ConfettiPref, _confetti);
+    }
 
     private Flip7PlayerView? Winner => View.Players.FirstOrDefault(p => p.Id == View.WinnerId);
 

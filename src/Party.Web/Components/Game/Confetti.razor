@@ -1,0 +1,38 @@
+@using System.Globalization
+
+@* A one-shot, deliberately over-the-top burst of falling pieces — pure CSS, no library. It's a
+   full-screen overlay with pointer-events off, so it never gets in the way of the buttons under
+   it. Each piece's look is seeded by its index, so a re-render doesn't make them jump. *@
+
+@if (Active)
+{
+    <div class="confetti" aria-hidden="true">
+        @for (var i = 0; i < Pieces; i++)
+        {
+            <span class="confetti-bit" style="@Style(i)"></span>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>Whether the burst is showing. Flip it to replay.</summary>
+    [Parameter] public bool Active { get; set; }
+
+    [Parameter] public int Pieces { get; set; } = 70;
+
+    private static readonly string[] Colors =
+        ["#ff5d6c", "#4cd97b", "#ffb02e", "#35c3f3", "#bb86ff", "#ff8fd0", "#ffffff"];
+
+    private static string Style(int i)
+    {
+        var r = new Random(i);   // seeded by index: varied, but stable across re-renders
+        var left = r.Next(0, 100);
+        var delay = r.NextDouble() * 0.9;
+        var duration = 1.5 + r.NextDouble() * 1.4;
+        var size = 6 + r.Next(7);
+        var color = Colors[r.Next(Colors.Length)];
+
+        return string.Create(CultureInfo.InvariantCulture,
+            $"left:{left}%;background:{color};width:{size}px;height:{size + 4}px;animation-delay:{delay:0.00}s;animation-duration:{duration:0.00}s;");
+    }
+}

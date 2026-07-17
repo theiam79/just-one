@@ -1,0 +1,52 @@
+@using Party.Core
+
+@* Room chat, shared by every game. The message list is column-reverse and fed newest-first, so
+   it pins to the latest line at the bottom without any JS to scroll it there. *@
+
+<div class="chat">
+    <div class="chat-head">Chat</div>
+    <div class="chat-log">
+        @if (Messages.Count == 0)
+        {
+            <p class="chat-empty">No messages yet — say hi.</p>
+        }
+        else
+        {
+            @foreach (var m in Messages.Reverse())
+            {
+                <div class="chat-msg @(m.SenderId == MyId ? "mine" : "")">
+                    <span class="chat-from">@m.SenderName</span>
+                    <span class="chat-text">@m.Text</span>
+                </div>
+            }
+        }
+    </div>
+    <form class="chat-form" @onsubmit="Send" @onsubmit:preventDefault>
+        <input class="chat-input" @bind="_draft" @bind:event="oninput"
+               maxlength="@RoomBase.MaxChatLength" placeholder="Say something…" aria-label="Chat message" />
+        <button class="btn tiny primary" type="submit" disabled="@string.IsNullOrWhiteSpace(_draft)">Send</button>
+    </form>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required IReadOnlyList<ChatMessage> Messages { get; set; }
+
+    [Parameter, EditorRequired] public required Guid MyId { get; set; }
+
+    /// <summary>Raised with the trimmed message text when the player sends.</summary>
+    [Parameter] public EventCallback<string> OnSend { get; set; }
+
+    private string _draft = "";
+
+    private async Task Send()
+    {
+        var text = _draft.Trim();
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        _draft = "";
+        await OnSend.InvokeAsync(text);
+    }
+}

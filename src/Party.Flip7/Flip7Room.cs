@@ -22,8 +22,13 @@ public sealed class Flip7Room : RoomBase
     /// </summary>
     public const int MaxPlayers = 20;
 
+    /// <summary>Off by default. When set, each connected player's turn auto-stays after this long.</summary>
+    public const int MinTurnTimerSeconds = 5;
+    public const int MaxTurnTimerSeconds = 120;
+
     private readonly Func<int, IReadOnlyList<Card>> _deckFactory;
     private readonly Random _rng;
+    private readonly Func<DateTimeOffset> _now;
     private readonly Queue<Card> _deck = new();
     private readonly List<Card> _discard = [];
     private readonly Dictionary<Guid, int> _totals = [];
@@ -56,11 +61,12 @@ public sealed class Flip7Room : RoomBase
     /// </summary>
     private bool _turnSpent;
 
-    public Flip7Room(string code, Func<int, IReadOnlyList<Card>> deckFactory, Random rng)
+    public Flip7Room(string code, Func<int, IReadOnlyList<Card>> deckFactory, Random rng, Func<DateTimeOffset>? clock = null)
         : base(code)
     {
         _deckFactory = deckFactory;
         _rng = rng;
+        _now = clock ?? (() => DateTimeOffset.UtcNow);
     }
 
     protected override int MinSeats => MinPlayers;
@@ -90,6 +96,9 @@ public sealed class Flip7Room : RoomBase
 
     /// <summary>What has happened this round, in words. Cleared when a new round starts.</summary>
     public GameLog Log { get; } = new();
+
+    /// <summary>How long each turn gets before it auto-stays, or 0 for no timer. A lobby setting.</summary>
+    public int TurnTimerSeconds { get; private set; }
 
     /// <summary>Running totals across the game's rounds.</summary>
     public IReadOnlyDictionary<Guid, int> Totals => _totals;
@@ -130,6 +139,48 @@ public sealed class Flip7Room : RoomBase
     }
 
     // ---- Game flow ----
+
+    /// <summary>
+    /// Sets the per-turn timer, or 0 to turn it off. A lobby setting so it can't change under the
+    /// table mid-round. When on, a turn that runs out auto-stays the player (or takes a card if
+    /// they've nothing to stay on yet) — the same thing the engine already does for someone away.
+    /// </summary>
+    public void SetTurnTimer(Guid callerId, int seconds)
+    {
+        RequirePhase(Flip7Phase.Lobby);
+        RequireHostPowers(callerId);
+        if (seconds != 0 && seconds is < MinTurnTimerSeconds or > MaxTurnTimerSeconds)
+        {
+            throw new GameRuleException($"Pick a turn timer between {MinTurnTimerSeconds} and {MaxTurnTimerSeconds} seconds, or 0 for none.");
+        }
+
+        TurnTimerSeconds = seconds;
+    }
+
+    /// <summary>
+    /// Reports that the current turn's timer has run out. Self-checking and idempotent: it acts
+    /// only if that exact player is still on the clock past that exact deadline, so an early or
+    /// stale fire — a client racing a turn that has already moved on — does nothing. The deadline
+    /// match plus the server-side clock check are what stop one client cutting another's turn short.
+    /// </summary>
+    public void TurnTimeUp(Guid playerId, DateTimeOffset deadline)
+    {
+        if (Phase is not Flip7Phase.Turns || _choices.Count > 0)
+        {
+            return;
+        }
+
+        if (Round?.CurrentPlayerId != playerId || Round.TurnDeadline != deadline || _now() < deadline)
+        {
+            return;
+        }
+
+        Round.TurnDeadline = null;
+
+        // Exactly what an absent player gets: stay on a line worth keeping, otherwise take a card.
+        AutoPlay(playerId);
+        Pump();
+    }
 
     public void StartGame(Guid callerId)
     {
@@ -686,12 +737,23 @@ public sealed class Flip7Room : RoomBase
             {
                 _turnIndex = index;
                 Round.CurrentPlayerId = order[index];
+                Round.TurnDeadline = ArmTurnTimer(order[index]);
                 return;
             }
         }
 
         Round.CurrentPlayerId = null;
+        Round.TurnDeadline = null;
     }
+
+    /// <summary>
+    /// The deadline a fresh turn gets, or null. Only armed for a player who is actually here —
+    /// an away player is played at once by the pump, so a timer on them would never be read.
+    /// </summary>
+    private DateTimeOffset? ArmTurnTimer(Guid playerId) =>
+        TurnTimerSeconds > 0 && IsConnected(playerId)
+            ? _now().AddSeconds(TurnTimerSeconds)
+            : null;
 
     /// <summary>Nothing left to deal and nothing to reshuffle: everyone still in banks what they have.</summary>
     private void ExhaustRound()

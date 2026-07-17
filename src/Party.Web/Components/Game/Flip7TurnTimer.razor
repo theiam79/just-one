@@ -1,0 +1,40 @@
+@using Party.Flip7
+
+@* The turn clock. Shows only when a turn is on the clock (Countdown renders nothing for a null
+   deadline). When it runs out, the player whose turn it is reports their own timeout; the room
+   ignores a stale or wrong-player fire, so no other circuit needs to. *@
+
+<Countdown Deadline="View.TurnDeadline" OnExpired="Expired">
+    <div class="turn-timer @(context <= TimeSpan.Zero ? "up" : "")">
+        <span class="timer-icon" aria-hidden="true">⏱</span>
+        @if (context <= TimeSpan.Zero)
+        {
+            <span class="timer-clock">@(View.IAmCurrentPlayer ? "time's up — staying" : "time's up")</span>
+        }
+        else
+        {
+            <span class="timer-clock">@Seconds(context)s</span>
+            <span class="timer-who">@(View.IAmCurrentPlayer ? "your turn" : $"{CurrentName}'s turn")</span>
+        }
+    </div>
+</Countdown>
+
+@code {
+    [Parameter, EditorRequired] public required Flip7View View { get; set; }
+    [Parameter, EditorRequired] public required Action<Action<Flip7Room>> Act { get; set; }
+
+    private string CurrentName =>
+        View.Players.FirstOrDefault(p => p.Id == View.CurrentPlayerId)?.Name ?? "their";
+
+    private static int Seconds(TimeSpan left) => Math.Max(0, (int)Math.Ceiling(left.TotalSeconds));
+
+    private void Expired()
+    {
+        // Only the player on the clock reports it, and only with the deadline they saw — the room
+        // checks both, so an early or stale call can't cut anyone's turn short.
+        if (View.IAmCurrentPlayer && View.CurrentPlayerId is { } id && View.TurnDeadline is { } deadline)
+        {
+            Act(r => r.TurnTimeUp(id, deadline));
+        }
+    }
+}

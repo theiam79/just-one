@@ -356,6 +356,18 @@ button.clue-card:disabled { cursor: default; }
 /* Each game gets its own accent; everything else is shared. */
 .room.flip7 { --accent: #35c3f3; --accent-text: #04222e; }
 
+.timer-option { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin: 0.75rem 0 0.25rem; }
+.timer-option-label { color: var(--muted); font-size: 0.85rem; margin-right: 0.25rem; }
+
+.turn-timer {
+  display: flex; align-items: center; gap: 0.5rem; justify-content: center;
+  background: var(--surface); border: 1px solid #2a3047; border-radius: var(--radius);
+  padding: 0.4rem 0.75rem; margin-bottom: 0.6rem; font-variant-numeric: tabular-nums;
+}
+.turn-timer .timer-clock { font-weight: 700; font-size: 1.1rem; }
+.turn-timer .timer-who { color: var(--muted); font-size: 0.85rem; }
+.turn-timer.up { border-color: var(--bad); color: var(--bad); }
+
 .f7actions { display: flex; gap: 0.75rem; }
 .f7actions .btn { flex: 1; }
 

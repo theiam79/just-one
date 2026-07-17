@@ -62,6 +62,13 @@ else
             <Flip7Table View="_view" />
         }
 
+        @* The round's play-by-play. Kept through the result phase so you can read back what
+           happened; it clears when the next round is dealt. *@
+        @if (_view.Phase is not Flip7Phase.Lobby)
+        {
+            <Flip7Log Entries="_view.Log" />
+        }
+
         @* Every phase, not just the lobby: sitting out an away player is a mid-game control,
            and a mid-game joiner has to be able to see that they are watching. *@
         <PlayerList Seats="@_view.Roster" MyId="@_view.MyId" HasHostPowers="@_view.HasHostPowers"

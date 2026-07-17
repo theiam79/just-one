@@ -1,3 +1,4 @@
+using Party.Core;
 using Party.Flip7;
 
 namespace Party.Web.Services;
@@ -59,6 +60,9 @@ public sealed record Flip7View
 
     public required Guid? Flip7PlayerId { get; init; }
     public required Guid? WinnerId { get; init; }
+
+    /// <summary>What has happened this round, oldest first. Empty in the lobby.</summary>
+    public required IReadOnlyList<GameLogEntry> Log { get; init; }
 
     public bool IAmChoosing => MyChoiceCard is not null;
 
@@ -128,6 +132,7 @@ public sealed record Flip7View
                 : null,
             Flip7PlayerId = round?.Flip7PlayerId,
             WinnerId = room.Winner,
+            Log = [.. room.Log.Entries],
         };
     }
 }

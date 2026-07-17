@@ -243,21 +243,36 @@ public abstract class RoomBase(string code)
         }
     }
 
-    /// <summary>Host-only, but if the host is disconnected anyone may drive so the game never stalls.</summary>
-    protected void RequireHostPowers(Guid callerId)
+    /// <summary>
+    /// Whether this caller may use a host power right now: they're the host, or the host is
+    /// away so anyone may drive rather than let the game stall. False for a stranger.
+    /// </summary>
+    public bool CanActAsHost(Guid callerId)
     {
-        var caller = GetPlayer(callerId);
+        var caller = _players.FirstOrDefault(p => p.Id == callerId);
+        if (caller is null)
+        {
+            return false;
+        }
+
         if (caller.IsHost)
         {
-            return;
+            return true;
         }
 
         var host = Host;
-        if (host is null || !host.IsConnected)
+        return host is null || !host.IsConnected;
+    }
+
+    /// <summary>Host-only, but if the host is disconnected anyone may drive so the game never stalls.</summary>
+    protected void RequireHostPowers(Guid callerId)
+    {
+        GetPlayer(callerId);   // must at least be in the room
+        if (CanActAsHost(callerId))
         {
             return;
         }
 
-        throw new GameRuleException($"Only the host ({host.Name}) can do that.");
+        throw new GameRuleException($"Only the host ({Host!.Name}) can do that.");
     }
 }

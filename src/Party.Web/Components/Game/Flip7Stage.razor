@@ -3,7 +3,7 @@
 
 @if (RoomClosed)
 {
-    <RoomNotice Heading="Room closed" Detail="This room was closed after an hour of inactivity." />
+    <RoomNotice Heading="Room closed" Detail="@ClosedDetail" />
 }
 @* Joining was refused — a full room, most likely. Say so, and offer a way out. *@
 else if (_view is null && Error is not null)
@@ -17,7 +17,9 @@ else if (_view is null)
 else
 {
     <div class="room flip7">
-        <RoomChrome Code="@_view.Code"><Logo>Flip <span class="accent">7</span></Logo></RoomChrome>
+        <RoomChrome Code="@_view.Code" CanClose="@_view.HasHostPowers" OnClose="CloseRoom">
+            <Logo>Flip <span class="accent">7</span></Logo>
+        </RoomChrome>
 
         @if (Error is not null)
         {

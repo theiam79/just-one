@@ -14,6 +14,7 @@ namespace Party.Web.Components.Game;
 /// overrides per game; what it buys is that this, the fiddly part, is written once. See #23.
 /// </remarks>
 public abstract class RoomStage<TRoom> : ComponentBase, IDisposable
+    where TRoom : RoomBase
 {
     [Parameter, EditorRequired] public required RoomHandle<TRoom> Handle { get; set; }
 
@@ -21,10 +22,19 @@ public abstract class RoomStage<TRoom> : ComponentBase, IDisposable
 
     [Parameter, EditorRequired] public required string PlayerName { get; set; }
 
+    [Inject] private RoomManager Rooms { get; set; } = default!;
+
     /// <summary>The last rejected move's message, shown as a banner until dismissed.</summary>
     protected string? Error { get; set; }
 
     protected bool RoomClosed { get; private set; }
+
+    /// <summary>What the "room closed" notice should say — the same in every game.</summary>
+    protected string ClosedDetail => Handle.CloseReason switch
+    {
+        RoomCloseReason.HostClosed => "The host closed this room.",
+        _ => "This room was closed after an hour of inactivity.",
+    };
 
     protected bool Joined { get; private set; }
 
@@ -88,6 +98,22 @@ public abstract class RoomStage<TRoom> : ComponentBase, IDisposable
     }
 
     protected void DismissError() => Error = null;
+
+    /// <summary>
+    /// Host ends the room for everyone, now, rather than waiting on the idle sweep. Guarded the
+    /// same way every host power is: the host, or anyone if the host has gone. Closing raises
+    /// Changed, so every circuit — including this one — drops to the "room closed" notice.
+    /// </summary>
+    protected void CloseRoom()
+    {
+        if (Handle.IsClosed || !Handle.Read(room => room.CanActAsHost(PlayerId)))
+        {
+            return;
+        }
+
+        Rooms.Remove(Handle.Code);
+        Handle.Close(RoomCloseReason.HostClosed);
+    }
 
     private void OnRoomChanged()
     {

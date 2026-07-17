@@ -120,6 +120,28 @@ public class Flip7TableTests
     }
 
     [Test]
+    public async Task Your_own_seat_carries_the_you_marker()
+    {
+        using var ctx = new BunitContext();
+        var table = Render(ctx, Room(new NumberCard(1), new NumberCard(2), new NumberCard(3)), Alice);
+
+        await Assert.That(Seat(table, "Alice").QuerySelector(".you")).IsNotNull();
+        await Assert.That(Seat(table, "Bob").QuerySelector(".you")).IsNull();
+    }
+
+    [Test]
+    public async Task Your_own_turn_reads_as_your_go()
+    {
+        using var ctx = new BunitContext();
+        var room = Room(new NumberCard(1), new NumberCard(2), new NumberCard(3));
+        var table = Render(ctx, room, Bob);   // Bob is up first, and is the viewer
+
+        await Assert.That(Seat(table, "Bob").TextContent).Contains("your go");
+        await Assert.That(Seat(table, "Bob").TextContent).DoesNotContain("their go");
+        await Assert.That(Seat(table, "Bob").ClassList).Contains("turn");
+    }
+
+    [Test]
     public async Task The_dealer_is_marked()
     {
         using var ctx = new BunitContext();

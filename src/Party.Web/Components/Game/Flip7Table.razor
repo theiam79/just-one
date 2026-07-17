@@ -11,6 +11,10 @@
             <div class="f7seat-head">
                 <span class="dot @(p.IsConnected ? "on" : "off")" title="@(p.IsConnected ? "connected" : "away")"></span>
                 <span class="player-name">@p.Name</span>
+                @if (p.Id == View.MyId)
+                {
+                    <span class="you" title="This is you">you</span>
+                }
                 @if (p.IsHost)
                 {
                     <span class="badge" title="Host">★</span>
@@ -33,7 +37,7 @@
                         <span class="badge soft" title="Stayed — points banked">stayed</span>
                         break;
                     case RoundStatus.Active when p.IsTheirTurn:
-                        <span class="badge" title="It's their go">their go</span>
+                        <span class="badge turn" title="@(p.Id == View.MyId ? "Your go" : "It's their go")">@(p.Id == View.MyId ? "your go" : "their go")</span>
                         break;
                 }
                 <span class="f7total" title="Total this game">@p.Total</span>

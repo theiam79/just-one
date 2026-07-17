@@ -20,4 +20,21 @@ window.party = {
       return false;
     }
   },
+  // Simple per-browser on/off preferences (e.g. the confetti toggle). Storage can throw in
+  // private mode or when the quota is full, so both degrade quietly like copyText above.
+  getFlag: (key, fallback) => {
+    try {
+      const v = localStorage.getItem(key);
+      return v === null ? fallback : v === "true";
+    } catch {
+      return fallback;
+    }
+  },
+  setFlag: (key, value) => {
+    try {
+      localStorage.setItem(key, value ? "true" : "false");
+    } catch {
+      // No persistence available; the preference just won't stick this session.
+    }
+  },
 };

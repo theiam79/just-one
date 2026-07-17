@@ -1,0 +1,121 @@
+@implements IDisposable
+
+@* A shared, game-agnostic countdown. Given a deadline it ticks locally — each circuit re-renders
+   its own clock rather than the server pushing a state change every second — and hands the time
+   left to its content. It raises OnExpired exactly once as the deadline passes, so a consumer can
+   act on the timeout without wiring up its own ticker. *@
+
+@if (Deadline is { } deadline)
+{
+    @ChildContent(deadline - Now())
+}
+
+@code {
+    [Parameter, EditorRequired] public required DateTimeOffset? Deadline { get; set; }
+
+    /// <summary>Renders the clock, given the time remaining (negative once it's up).</summary>
+    [Parameter, EditorRequired] public required RenderFragment<TimeSpan> ChildContent { get; set; }
+
+    /// <summary>Raised once, when the deadline passes.</summary>
+    [Parameter] public EventCallback OnExpired { get; set; }
+
+    // Touched from the circuit thread (OnParametersSet) and the ticker's own thread (OnTick), so
+    // all ticker access goes through the gate — see RoundTimer for the race this avoids.
+    private readonly object _tickerGate = new();
+    private System.Timers.Timer? _ticker;
+
+    private DateTimeOffset? _latchedFor;   // the deadline OnExpired has already fired for
+    private bool _fired;
+
+    private static DateTimeOffset Now() => DateTimeOffset.UtcNow;
+
+    protected override void OnParametersSet()
+    {
+        // A new or cleared deadline re-arms the one-shot expiry.
+        if (Deadline != _latchedFor)
+        {
+            _latchedFor = Deadline;
+            lock (_tickerGate)
+            {
+                _fired = false;
+            }
+        }
+
+        if (Deadline is { } deadline && Now() < deadline)
+        {
+            StartTicking();
+        }
+        else
+        {
+            StopTicking();
+            MaybeFire();
+        }
+    }
+
+    private void StartTicking()
+    {
+        lock (_tickerGate)
+        {
+            if (_ticker is not null)
+            {
+                return;
+            }
+
+            var ticker = new System.Timers.Timer(500) { AutoReset = true };
+            ticker.Elapsed += OnTick;
+            _ticker = ticker;
+            ticker.Start();
+        }
+    }
+
+    private void OnTick(object? sender, System.Timers.ElapsedEventArgs e)
+    {
+        if (Deadline is not { } deadline || Now() >= deadline)
+        {
+            StopTicking();
+            MaybeFire();
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void MaybeFire()
+    {
+        if (Deadline is not { } deadline || Now() < deadline)
+        {
+            return;
+        }
+
+        // Both the circuit thread (OnParametersSet) and the timer thread (OnTick) can reach here,
+        // so latch under the gate — otherwise both could observe !_fired and fire OnExpired twice,
+        // breaking the "exactly once" contract for any non-idempotent consumer.
+        lock (_tickerGate)
+        {
+            if (_fired)
+            {
+                return;
+            }
+
+            _fired = true;
+        }
+
+        _ = InvokeAsync(() => OnExpired.InvokeAsync());
+    }
+
+    private void StopTicking()
+    {
+        lock (_tickerGate)
+        {
+            if (_ticker is null)
+            {
+                return;
+            }
+
+            _ticker.Elapsed -= OnTick;
+            _ticker.Dispose();   // safe from inside Elapsed: it doesn't wait on in-flight callbacks
+            _ticker = null;
+        }
+    }
+
+    public void Dispose() => StopTicking();
+}

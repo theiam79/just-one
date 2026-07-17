@@ -64,6 +64,12 @@ public sealed record Flip7View
     /// <summary>What has happened this round, oldest first. Empty in the lobby.</summary>
     public required IReadOnlyList<GameLogEntry> Log { get; init; }
 
+    /// <summary>The room's per-turn timer setting in seconds, or 0 for none.</summary>
+    public required int TurnTimerSeconds { get; init; }
+
+    /// <summary>When the current turn runs out — only while a turn is genuinely waiting on a Hit or Stay.</summary>
+    public required DateTimeOffset? TurnDeadline { get; init; }
+
     public bool IAmChoosing => MyChoiceCard is not null;
 
     public Flip7PlayerView? Me => Players.FirstOrDefault(p => p.Id == MyId);
@@ -133,6 +139,10 @@ public sealed record Flip7View
             Flip7PlayerId = round?.Flip7PlayerId,
             WinnerId = room.Winner,
             Log = [.. room.Log.Entries],
+            TurnTimerSeconds = room.TurnTimerSeconds,
+            // Only surfaced while a turn is actually on the clock: not during a card placement,
+            // which pauses the turn, and not once the round is over.
+            TurnDeadline = room.Phase is Flip7Phase.Turns && choice is null ? round?.TurnDeadline : null,
         };
     }
 }

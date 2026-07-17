@@ -38,6 +38,11 @@ else
             </div>
         }
 
+        @if (_view.Phase is Flip7Phase.Turns)
+        {
+            <Flip7TurnTimer View="_view" Act="Act" />
+        }
+
         <section class="stage">
             @switch (_view.Phase)
             {

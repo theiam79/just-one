@@ -32,6 +32,12 @@ public sealed class RoundState
     /// <summary>Who is being offered Hit or Stay, or null when the round isn't waiting on that.</summary>
     public Guid? CurrentPlayerId { get; set; }
 
+    /// <summary>
+    /// When the current player's turn runs out, if a turn timer is on. Null when there's no
+    /// timer, or the current player is away (the engine plays them at once instead of waiting).
+    /// </summary>
+    public DateTimeOffset? TurnDeadline { get; set; }
+
     /// <summary>Who hit a Flip 7, if anyone. Set the moment it happens; ends the round for everyone.</summary>
     public Guid? Flip7PlayerId { get; set; }
 

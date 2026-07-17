@@ -12,6 +12,22 @@
 
     @if (View.HasHostPowers)
     {
+        <div class="timer-option">
+            <span class="timer-option-label">Turn timer</span>
+            @foreach (var seconds in TimerChoices)
+            {
+                <button class="btn tiny @(View.TurnTimerSeconds == seconds ? "primary" : "ghost")"
+                        @onclick="() => Act(r => r.SetTurnTimer(View.MyId, seconds))">
+                    @(seconds == 0 ? "off" : $"{seconds}s")
+                </button>
+            }
+        </div>
+        <p class="hint">
+            @(View.TurnTimerSeconds == 0
+                ? "No turn timer — nobody's rushed."
+                : $"Each turn auto-stays after {View.TurnTimerSeconds}s (or takes a card if you've none yet).")
+        </p>
+
         <button class="btn primary big" disabled="@(Seated < Flip7Room.MinPlayers)"
                 @onclick="() => Act(r => r.StartGame(View.MyId))">
             Start game
@@ -38,4 +54,6 @@
     private int Seated => View.Players.Count(p => !p.IsSpectator);
 
     private int Decks => Flip7Deck.DecksFor(Seated);
+
+    private static readonly int[] TimerChoices = [0, 15, 30, 45];
 }

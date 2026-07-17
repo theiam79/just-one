@@ -8,6 +8,8 @@
   --accent-text: #1a1405;
   --ok: #4cd97b;
   --bad: #ff5d6c;
+  /* Whose turn it is — a fixed hue that collides with neither game's accent (amber / cyan). */
+  --active: #bb86ff;
   --radius: 14px;
   font-size: 16px;
 }
@@ -291,6 +293,18 @@ button.clue-card:disabled { cursor: default; }
 .badge.soft { color: var(--muted); font-size: 0.75rem; }
 .badge.ok { color: var(--ok); font-size: 0.75rem; }
 .badge.bad { color: var(--bad); font-size: 0.75rem; }
+/* Active-turn badge: filled pill in the shared "active" hue, so it never reads as a status. */
+.badge.turn {
+  background: var(--active); color: #1a1030;
+  border-radius: 999px; padding: 0.05rem 0.5rem; font-size: 0.72rem; font-weight: 700;
+}
+
+/* "you" marker — identity by label, not colour alone, so it survives any highlight underneath. */
+.you {
+  background: var(--accent); color: var(--accent-text);
+  border-radius: 999px; padding: 0.02rem 0.45rem;
+  font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
 
 /* ---- Recap / history ---- */
 .recap ul, .history ul { list-style: none; margin: 0.3rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
@@ -341,9 +355,20 @@ button.clue-card:disabled { cursor: default; }
   border-radius: var(--radius); padding: 0.6rem 0.75rem;
 }
 .f7seat.me { border-color: var(--accent); }
-.f7seat.turn { box-shadow: 0 0 0 2px var(--accent); }
+/* Active turn: violet glow, a different hue AND form from the "me" accent border, so a seat
+   that is both you and up-next shows both cues at once instead of one masking the other. */
+.f7seat.turn { box-shadow: 0 0 0 2px var(--active), 0 0 14px -3px var(--active); }
 .f7seat.away { opacity: 0.6; }
 .f7seat.busted { opacity: 0.75; }
+
+/* A gentle breathe draws the eye to the active seat; motion-averse players just get the glow. */
+@media (prefers-reduced-motion: no-preference) {
+  .f7seat.turn { animation: seat-pulse 1.9s ease-in-out infinite; }
+}
+@keyframes seat-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--active), 0 0 14px -3px var(--active); }
+  50%      { box-shadow: 0 0 0 2px var(--active), 0 0 22px 0 var(--active); }
+}
 
 .f7seat-head { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .f7seat-foot { min-height: 1rem; }

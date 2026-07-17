@@ -8,6 +8,10 @@
         <div class="player @(p.IsConnected ? "" : "away") @(p.Id == MyId ? "me" : "")">
             <span class="dot @(p.IsConnected ? "on" : "off")" title="@(p.IsConnected ? "connected" : "away")"></span>
             <span class="player-name">@p.Name</span>
+            @if (p.Id == MyId)
+            {
+                <span class="you" title="This is you">you</span>
+            }
             @if (p.IsHost)
             {
                 <span class="badge" title="Host">★</span>

@@ -180,4 +180,15 @@ public class PlayerListTests
 
         await Assert.That(list.FindAll(".player")).Count().IsEqualTo(1);
     }
+
+    [Test]
+    public async Task Your_own_row_carries_the_you_marker()
+    {
+        // The marker lives on the shared roster, so it must work here — the surface Just One uses.
+        using var ctx = new BunitContext();
+        var list = Render(ctx, [Seat(Alice, "Alice"), Seat(Bob, "Bob")], Bob);
+
+        await Assert.That(Row(list, "Bob").QuerySelector(".you")).IsNotNull();
+        await Assert.That(Row(list, "Alice").QuerySelector(".you")).IsNull();
+    }
 }

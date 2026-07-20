@@ -84,7 +84,17 @@
         // for the preference (_prefRead) rather than flashing on for anyone who muted it.
         if (firstRender)
         {
-            _confetti = await JS.InvokeAsync<bool>("party.getFlag", ConfettiPref, true);
+            // A cosmetic preference must never take the room down with it: an old cached party.js
+            // that predates getFlag would otherwise throw here and tear down the whole circuit.
+            try
+            {
+                _confetti = await JS.InvokeAsync<bool>("party.getFlag", ConfettiPref, true);
+            }
+            catch (JSException)
+            {
+                _confetti = true;
+            }
+
             _prefRead = true;
             StateHasChanged();
         }
@@ -93,7 +103,15 @@
     private async Task ToggleConfetti(ChangeEventArgs e)
     {
         _confetti = e.Value is true;
-        await JS.InvokeVoidAsync("party.setFlag", ConfettiPref, _confetti);
+
+        try
+        {
+            await JS.InvokeVoidAsync("party.setFlag", ConfettiPref, _confetti);
+        }
+        catch (JSException)
+        {
+            // The toggle still applies for this render; it just won't be remembered.
+        }
     }
 
     private Flip7PlayerView? Winner => View.Players.FirstOrDefault(p => p.Id == View.WinnerId);

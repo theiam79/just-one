@@ -1,8 +1,14 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Let a central PackageVersion pin a transitive dependency, so the AngleSharp bump below
+         actually reaches the copy bunit drags in. -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <!-- bunit 2.7.2 pulls AngleSharp 1.4.0, which has advisory GHSA-pgww-w46g-26qg; with
+         TreatWarningsAsErrors that fails every build. Pin the patched line. Test-only. -->
+    <PackageVersion Include="AngleSharp" Version="1.5.2" />
     <PackageVersion Include="bunit" Version="2.7.2" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.7.0" />

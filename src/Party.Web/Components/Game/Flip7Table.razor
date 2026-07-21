@@ -4,6 +4,13 @@
 
 @* Everyone's line, face up. Flip 7 has no hidden information, so this is simply the table. *@
 
+<div class="f7sort">
+    <button class="btn tiny ghost" title="Order the cards in each line by draw order or by value"
+            @onclick="() => _sortByValue = !_sortByValue">
+        sort: @(_sortByValue ? "by value" : "draw order")
+    </button>
+</div>
+
 <div class="f7table">
     @foreach (var p in View.Players.Where(p => !p.IsSpectator))
     {
@@ -54,7 +61,7 @@
                 }
                 else
                 {
-                    @foreach (var card in p.Line)
+                    @foreach (var card in Ordered(p.Line))
                     {
                         <Flip7Card Card="card" Faded="@(p.Status == RoundStatus.Busted)" />
                     }
@@ -82,6 +89,22 @@
 
 @code {
     [Parameter, EditorRequired] public required Flip7View View { get; set; }
+
+    // A per-viewer display preference: leave lines in draw order, or line them up by value.
+    private bool _sortByValue;
+
+    private IEnumerable<Card> Ordered(IReadOnlyList<Card> line) =>
+        _sortByValue ? line.OrderBy(SortKey) : line;
+
+    // Numbers first, in value order, then modifiers, then action cards. OrderBy is stable, so
+    // cards with the same key stay in the order they were drawn.
+    private static int SortKey(Card card) => card switch
+    {
+        NumberCard n => n.Value,
+        ModifierCard m => 100 + m.PlusValue,
+        ActionCard => 200,
+        _ => 300,
+    };
 
     private string SeatClass(Flip7PlayerView p)
     {

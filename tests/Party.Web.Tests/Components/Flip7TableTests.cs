@@ -123,6 +123,27 @@ public class Flip7TableTests
     }
 
     [Test]
+    public async Task Cards_in_a_line_can_be_sorted_by_value()
+    {
+        using var ctx = new BunitContext();
+        var room = Room(new NumberCard(5), new NumberCard(1), new NumberCard(3),
+                        new NumberCard(2), new NumberCard(8));
+        room.Hit(Bob);      // Bob: 5, 2
+        room.Stay(Carol);
+        room.Stay(Alice);
+        room.Hit(Bob);      // Bob: 5, 2, 8
+
+        var table = Render(ctx, room, Alice);
+        var drawOrder = Seat(table, "Bob").QuerySelectorAll(".f7card").Select(c => c.TextContent);
+        await Assert.That(string.Join(",", drawOrder)).IsEqualTo("5,2,8");   // draw order by default
+
+        table.Find(".f7sort .btn").Click();
+
+        var byValue = Seat(table, "Bob").QuerySelectorAll(".f7card").Select(c => c.TextContent);
+        await Assert.That(string.Join(",", byValue)).IsEqualTo("2,5,8");
+    }
+
+    [Test]
     public async Task Whose_go_it_is_is_marked()
     {
         using var ctx = new BunitContext();

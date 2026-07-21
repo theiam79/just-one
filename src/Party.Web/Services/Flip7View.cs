@@ -65,6 +65,15 @@ public sealed record Flip7View
     /// <summary>Who the table is waiting on to place a card, when it isn't this player.</summary>
     public required string? ChoosingPlayerName { get; init; }
 
+    /// <summary>
+    /// The card currently being placed, shown to everyone — there's nothing hidden about a Freeze
+    /// or Flip Three mid-placement, so onlookers can see what they're waiting on. Null when nothing
+    /// is being placed.
+    /// </summary>
+    public required Card? PlacingCard { get; init; }
+
+    public required ChoiceKind? PlacingKind { get; init; }
+
     public required Guid? Flip7PlayerId { get; init; }
     public required Guid? WinnerId { get; init; }
 
@@ -141,6 +150,8 @@ public sealed record Flip7View
             IAmCurrentPlayer = round?.CurrentPlayerId == viewerId,
             MyChoiceCard = choice?.ChooserId == viewerId ? choice.Card : null,
             MyChoiceKind = choice?.ChooserId == viewerId ? choice.Kind : null,
+            PlacingCard = choice?.Card,
+            PlacingKind = choice?.Kind,
             MyChoiceTargets = choice?.ChooserId == viewerId ? targets : [],
             ChoosingPlayerName = choice is not null && choice.ChooserId != viewerId
                 ? players.FirstOrDefault(p => p.Id == choice.ChooserId)?.Name

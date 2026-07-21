@@ -393,7 +393,8 @@ button.clue-card:disabled { cursor: default; }
 
 .f7played { display: flex; align-items: center; gap: 0.6rem; }
 
-.f7table { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.75rem; }
+.f7sort { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+.f7table { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.4rem; }
 
 .f7seat {
   flex: 1 1 15rem; background: var(--surface); border: 1px solid #2a3047;

@@ -119,10 +119,12 @@ public class Flip7TurnPanelTests
         var room = Room(new NumberCard(1), new NumberCard(2), new NumberCard(3), new ActionCard(ActionKind.Freeze));
         room.Hit(Bob);
 
-        var text = Render(ctx, room, Carol).Markup;
-        await Assert.That(text).Contains("Bob is placing a card");
+        var panel = Render(ctx, room, Carol);
+        // Onlookers are told who, and — since nothing here is hidden — what is being placed.
+        await Assert.That(panel.Markup).Contains("Bob is placing a Freeze");
+        await Assert.That(panel.FindAll(".f7played .f7card")).IsNotEmpty();
         // And they are not offered the choice themselves.
-        await Assert.That(Render(ctx, room, Carol).FindAll(".f7targets .btn")).IsEmpty();
+        await Assert.That(panel.FindAll(".f7targets .btn")).IsEmpty();
     }
 
     // ---- Hit and stay ----

@@ -354,6 +354,9 @@ button.clue-card:disabled { cursor: default; }
   .mystery-word, .final-score { font-size: 2rem; }
 }
 
+.switch-games { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
+.switch-label { color: var(--muted); font-size: 0.85rem; }
+
 /* ---- Game picker ---- */
 
 .game-picker { display: flex; flex-direction: column; gap: 0.75rem; }

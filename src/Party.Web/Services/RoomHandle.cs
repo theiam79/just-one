@@ -46,7 +46,60 @@ public abstract class RoomHandle
     /// <summary>Why the room closed. Only meaningful once <see cref="IsClosed"/> is true.</summary>
     public RoomCloseReason CloseReason { get; private set; }
 
+    /// <summary>The room's roster, or null for the odd handle that isn't over a real room (a test double).</summary>
+    private protected abstract RoomBase? AsRoomBase { get; }
+
     public event Action? Changed;
+
+    /// <summary>
+    /// Raised when this handle has been replaced by another for the same code — a game switch.
+    /// A subscriber re-fetches the code's current handle and re-opens on it.
+    /// </summary>
+    public event Action? Superseded;
+
+    /// <summary>Whether this caller may switch the game — the same host rule every host power uses.</summary>
+    public bool CanSwitchGame(Guid callerId)
+    {
+        lock (Gate)
+        {
+            return AsRoomBase?.CanActAsHost(callerId) ?? false;
+        }
+    }
+
+    /// <summary>A snapshot of the roster, taken under the lock — what a switch carries over.</summary>
+    public IReadOnlyList<Player> SnapshotPlayers()
+    {
+        lock (Gate)
+        {
+            return AsRoomBase is { } room ? [.. room.Players] : [];
+        }
+    }
+
+    /// <summary>Seeds this (new) room with a roster carried over from the room it replaces.</summary>
+    public void AdoptPlayers(IReadOnlyList<Player> players)
+    {
+        lock (Gate)
+        {
+            AsRoomBase?.AdoptRoster(players);
+            LastActivity = DateTimeOffset.UtcNow;
+        }
+    }
+
+    /// <summary>Tells every circuit on this handle that a successor has taken over the code.</summary>
+    public void MarkSuperseded()
+    {
+        foreach (var handler in Superseded?.GetInvocationList() ?? [])
+        {
+            try
+            {
+                ((Action)handler)();
+            }
+            catch
+            {
+                // One dead circuit must not break the fan-out to everyone else.
+            }
+        }
+    }
 
     public void Close(RoomCloseReason reason = RoomCloseReason.Inactivity)
     {
@@ -89,6 +142,9 @@ public sealed class RoomHandle<TRoom>(string code, GameType game, TRoom room) : 
     public override string Code => code;
 
     public override GameType Game => game;
+
+    // Real games are RoomBase; the test double isn't, and gets a null roster.
+    private protected override RoomBase? AsRoomBase => room as RoomBase;
 
     public void Mutate(Action<TRoom> action)
     {

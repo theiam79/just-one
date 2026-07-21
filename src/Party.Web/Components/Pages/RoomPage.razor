@@ -1,4 +1,5 @@
 @page "/room/{Code}"
+@implements IDisposable
 @inject RoomManager Rooms
 @inject IJSRuntime JS
 
@@ -88,13 +89,42 @@ else
         {
             _roomMissing = true;
         }
-        else if (string.IsNullOrWhiteSpace(_name))
+        else
         {
-            _needName = true;
+            // Follow the code across a game switch: when this handle is superseded, re-open on
+            // whatever's now playing under the same code.
+            _handle.Superseded += OnSuperseded;
+            if (string.IsNullOrWhiteSpace(_name))
+            {
+                _needName = true;
+            }
         }
 
         _initialized = true;
         StateHasChanged();
+    }
+
+    private void OnSuperseded() => _ = InvokeAsync(() =>
+    {
+        if (Rooms.TryGetRoom(Code, out var next) && !ReferenceEquals(next, _handle))
+        {
+            if (_handle is not null)
+            {
+                _handle.Superseded -= OnSuperseded;
+            }
+
+            _handle = next;
+            _handle.Superseded += OnSuperseded;
+            StateHasChanged();   // re-dispatch to the new game's stage
+        }
+    });
+
+    public void Dispose()
+    {
+        if (_handle is not null)
+        {
+            _handle.Superseded -= OnSuperseded;
+        }
     }
 
     private async Task SubmitName()

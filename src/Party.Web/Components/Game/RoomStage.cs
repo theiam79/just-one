@@ -118,6 +118,12 @@ public abstract class RoomStage<TRoom> : ComponentBase, IDisposable
         Handle.Close(RoomCloseReason.HostClosed);
     }
 
+    /// <summary>
+    /// Host switches the room to another game, keeping the code and players. The manager supersedes
+    /// this handle, and the page re-opens every circuit on the new game.
+    /// </summary>
+    protected void SwitchGame(GameType game) => Rooms.SwitchGame(Handle.Code, game, PlayerId);
+
     /// <summary>Sends a chat message from this player. Blank drafts never leave the client.</summary>
     protected void PostChat(string text)
     {

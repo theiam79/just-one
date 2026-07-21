@@ -29,6 +29,9 @@ internal sealed class TestStage : RoomStage<Flip7Room>
     /// <summary>Closes the room exactly as the header's control would.</summary>
     public void Close() => CloseRoom();
 
+    /// <summary>Switches the room's game exactly as the result screen's control would.</summary>
+    public void Switch(GameType game) => SwitchGame(game);
+
     protected override void JoinRoom(Flip7Room room, Guid playerId, string name)
     {
         room.Join(playerId, name);

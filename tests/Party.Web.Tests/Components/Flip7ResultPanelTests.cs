@@ -51,7 +51,8 @@ public class Flip7ResultPanelTests
     private static IRenderedComponent<Flip7ResultPanel> Render(BunitContext ctx, Flip7View view) =>
         ctx.Render<Flip7ResultPanel>(p => p
             .Add(x => x.View, view)
-            .Add(x => x.Act, _ => { }));
+            .Add(x => x.Act, _ => { })
+            .Add(x => x.OnSwitchGame, _ => { }));
 
     [Test]
     public async Task A_flip_7_sets_off_the_confetti_when_it_is_on()

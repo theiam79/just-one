@@ -253,6 +253,26 @@ public class RoomStageTests
     }
 
     [Test]
+    public async Task The_host_switches_the_room_to_another_game_via_the_manager()
+    {
+        using var ctx = new BunitContext();
+        var rooms = new RoomManager();
+        ctx.Services.AddSingleton(rooms);
+        var handle = (RoomHandle<Flip7Room>)rooms.CreateRoom(GameType.Flip7);
+
+        var stage = ctx.Render<TestStage>(p => p
+            .Add(x => x.Handle, handle)
+            .Add(x => x.PlayerId, Alice)
+            .Add(x => x.PlayerName, "Alice"));   // Alice joins first, so she's host
+
+        await stage.InvokeAsync(() => stage.Instance.Switch(GameType.JustOne));
+
+        await Assert.That(rooms.TryGetRoom(handle.Code, out var current)).IsTrue();
+        await Assert.That(current!.Game).IsEqualTo(GameType.JustOne);
+        await Assert.That(current.Code).IsEqualTo(handle.Code);
+    }
+
+    [Test]
     public async Task Being_turned_away_is_explained_rather_than_swallowed()
     {
         using var ctx = new BunitContext();

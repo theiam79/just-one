@@ -37,6 +37,13 @@
         @if (View.HasHostPowers)
         {
             <button class="btn primary big" @onclick="() => Act(r => r.PlayAgain(View.MyId))">Play again</button>
+            <div class="switch-games">
+                <span class="switch-label">or switch the room to</span>
+                @foreach (var g in GameInfo.All.Where(g => g.Type != GameType.Flip7))
+                {
+                    <button class="btn ghost" title="@g.Blurb" @onclick="() => OnSwitchGame(g.Type)">@g.Name</button>
+                }
+            </div>
         }
         else
         {
@@ -69,6 +76,9 @@
 @code {
     [Parameter, EditorRequired] public required Flip7View View { get; set; }
     [Parameter, EditorRequired] public required Action<Action<Flip7Room>> Act { get; set; }
+
+    /// <summary>Host switches the room to another game, keeping the code and players.</summary>
+    [Parameter, EditorRequired] public required Action<GameType> OnSwitchGame { get; set; }
 
     private const string ConfettiPref = "party-confetti";
 

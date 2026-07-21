@@ -155,6 +155,26 @@ public abstract class RoomBase(string code)
         return player;
     }
 
+    /// <summary>
+    /// Takes on an existing roster when a room switches games: the same people, the same host, a
+    /// clean slate otherwise. Seats up to this game's limit; anyone over it watches until a seat
+    /// frees. Connection is re-established as each player's circuit re-opens on the new game.
+    /// </summary>
+    public void AdoptRoster(IReadOnlyList<Player> incoming)
+    {
+        foreach (var p in incoming)
+        {
+            var seated = DealsInNewPlayers && _players.Count(q => !q.IsSpectator) < MaxSeats;
+            _players.Add(new Player
+            {
+                Id = p.Id,
+                Name = p.Name,
+                IsHost = p.IsHost,
+                IsSpectator = !seated,
+            });
+        }
+    }
+
     public void Leave(Guid id)
     {
         var player = _players.FirstOrDefault(p => p.Id == id);
@@ -262,15 +282,22 @@ public abstract class RoomBase(string code)
     /// </summary>
     protected void ClearSpectators()
     {
+        var seated = 0;
         foreach (var p in _players)
         {
             if (StaysBenched(p))
             {
-                continue;
+                continue;   // still away-benched; keeps watching and doesn't fill a seat
             }
 
-            p.IsSpectator = false;
+            // Seat up to the table's limit; anyone over it keeps watching. Normally Join already
+            // caps the roster, but a room switched from a bigger game can arrive over the limit.
+            p.IsSpectator = seated >= MaxSeats;
             p.BenchedForInactivity = false;
+            if (!p.IsSpectator)
+            {
+                seated++;
+            }
         }
     }
 

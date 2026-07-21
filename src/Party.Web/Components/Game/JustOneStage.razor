@@ -52,7 +52,7 @@ else
                     <ResultPanel View="_view" Act="Act" />
                     break;
                 case GamePhase.GameOver:
-                    <GameOverPanel View="_view" Act="Act" />
+                    <GameOverPanel View="_view" Act="Act" OnSwitchGame="SwitchGame" />
                     break;
             }
         </section>

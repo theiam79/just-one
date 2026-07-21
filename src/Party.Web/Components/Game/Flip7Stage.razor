@@ -67,6 +67,12 @@ else
             <Flip7Table View="_view" />
         }
 
+        @* Round-by-round scorecard, once a round is in the books — during play and after. *@
+        @if (_view.RoundScores.Count > 0)
+        {
+            <Flip7Scorecard View="_view" />
+        }
+
         @* Every phase, not just the lobby: sitting out an away player is a mid-game control,
            and a mid-game joiner has to be able to see that they are watching. *@
         <PlayerList Seats="@_view.Roster" MyId="@_view.MyId" HasHostPowers="@_view.HasHostPowers"

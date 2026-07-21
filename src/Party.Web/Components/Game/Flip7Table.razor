@@ -40,6 +40,10 @@
                         <span class="badge turn" title="@(p.Id == View.MyId ? "Your go" : "It's their go")">@(p.Id == View.MyId ? "your go" : "their go")</span>
                         break;
                 }
+                @if (p.WillReachTarget)
+                {
+                    <span class="badge win" title="Banking now would reach @Flip7Rules.WinningScore">🎯 @Flip7Rules.WinningScore</span>
+                }
                 <span class="f7total" title="Total this game">@p.Total</span>
             </div>
 

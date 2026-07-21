@@ -687,7 +687,9 @@ public sealed class Flip7Room : RoomBase
                 return;
 
             case ActionKind.FlipThree:
-                _discard.Add(card);
+                // The card stays face up in front of the target, spent, so the table remembers a
+                // Flip Three landed here — it rejoins the discard at round end like every spent card.
+                hand.Tableau.AddSpent(card);
                 _flipThree = new FlipThreeState { TargetId = targetId };
                 Narrate(FromTo(chooserId, targetId, "flips three on"), Flip7LogKind.FlipThree);
                 return;

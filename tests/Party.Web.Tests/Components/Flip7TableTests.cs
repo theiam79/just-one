@@ -108,6 +108,20 @@ public class Flip7TableTests
     }
 
     [Test]
+    public async Task A_flip_three_stays_shown_used_in_front_of_its_target()
+    {
+        using var ctx = new BunitContext();
+        var room = Room(new NumberCard(1), new NumberCard(2), new NumberCard(3),
+                        new ActionCard(ActionKind.FlipThree),
+                        new NumberCard(4), new NumberCard(5), new NumberCard(6));
+        room.Hit(Bob);
+        room.ChooseTarget(Bob, Carol);   // Flip Three lands on Carol
+
+        var seat = Seat(Render(ctx, room, Alice), "Carol");
+        await Assert.That(seat.QuerySelectorAll(".f7card.used").Select(c => c.TextContent)).Contains("⤬3");
+    }
+
+    [Test]
     public async Task A_spent_second_chance_is_shown_used()
     {
         using var ctx = new BunitContext();

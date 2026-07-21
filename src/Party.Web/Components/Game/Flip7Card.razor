@@ -14,6 +14,9 @@
     {
         NumberCard => "num",
         ModifierCard => "mod",
+        ActionCard { Kind: ActionKind.Freeze } => "act freeze",
+        ActionCard { Kind: ActionKind.FlipThree } => "act flip3",
+        ActionCard { Kind: ActionKind.SecondChance } => "act second",
         _ => "act",
     };
 

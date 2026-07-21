@@ -10,6 +10,12 @@
   --bad: #ff5d6c;
   /* Whose turn it is — a fixed hue that collides with neither game's accent (amber / cyan). */
   --active: #bb86ff;
+  /* Flip 7 card colours, roughly matching the real cards. Reused by the round log so a card and
+     its log mention always agree. */
+  --card-bonus: #ffab4d;   /* +N / ×2 modifiers */
+  --card-freeze: #5cb8ff;
+  --card-flip3: #ffdd57;
+  --card-second: #ff8fb3;  /* Second Chance */
   --radius: 14px;
   font-size: 16px;
 }
@@ -414,8 +420,12 @@ button.clue-card:disabled { cursor: default; }
   background: var(--surface-2); border: 1px solid #3a4260;
 }
 .f7card.num { background: #eef2ff; color: #1a1f36; border-color: #c9d2f0; }
-.f7card.mod { background: var(--ok); color: #04220f; border-color: var(--ok); }
-.f7card.act { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.f7card.mod { background: var(--card-bonus); color: #3a2000; border-color: var(--card-bonus); }
+/* Fallback for any unclassified action card; the three kinds below override it. */
+.f7card.act { background: var(--surface-2); color: var(--text); border-color: #3a4260; }
+.f7card.freeze { background: var(--card-freeze); color: #06263f; border-color: var(--card-freeze); }
+.f7card.flip3  { background: var(--card-flip3);  color: #3a2f00; border-color: var(--card-flip3); }
+.f7card.second { background: var(--card-second); color: #3d0a1f; border-color: var(--card-second); }
 .f7card.faded { opacity: 0.45; }
 
 /* ---- Flip 7 round log ---- */
@@ -426,9 +436,9 @@ button.clue-card:disabled { cursor: default; }
 .f7log-line.draw { color: var(--muted); }
 .f7log-line.bust { border-left-color: var(--bad); color: #ffb9c1; }
 .f7log-line.flip7 { border-left-color: var(--ok); color: var(--ok); font-weight: 700; }
-.f7log-line.freeze { border-left-color: #7fd7ff; }
-.f7log-line.flip-three { border-left-color: #bb86ff; }
-.f7log-line.second-chance { border-left-color: var(--ok); }
+.f7log-line.freeze { border-left-color: var(--card-freeze); }
+.f7log-line.flip-three { border-left-color: var(--card-flip3); }
+.f7log-line.second-chance { border-left-color: var(--card-second); }
 .f7log-line.stay { border-left-color: #5a5f76; }
 .f7log-line.info { color: var(--muted); font-style: italic; }
 

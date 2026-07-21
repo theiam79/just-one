@@ -510,10 +510,11 @@ public sealed class Flip7Room : RoomBase
             case NumberCard number when Flip7Rules.WouldBust(hand.Tableau, card):
                 if (hand.Tableau.SecondChance is { } saved)
                 {
-                    // Second Chance takes itself and the duplicate out of play. The turn ends
-                    // there — no replacement card until their next go — and they stay active.
-                    hand.Tableau.Remove(saved);
-                    _discard.Add(saved);
+                    // The Second Chance is spent but stays face up (translucent) until the round
+                    // ends, so the table remembers it saved a bust; only the duplicate leaves
+                    // play. The turn ends there — no replacement card until their next go — and
+                    // they stay active.
+                    hand.Tableau.Spend(saved);
                     _discard.Add(number);
                     Log.Add($"{Name(id)}'s Second Chance cancels the second {number.Value}.", Flip7LogKind.SecondChance);
                     return;
@@ -799,7 +800,9 @@ public sealed class Flip7Room : RoomBase
             _totals[id] = _totals.GetValueOrDefault(id) + Flip7Rules.Score(hand.Tableau, !hand.Scores);
 
             // The round's cards are set aside — they aren't shuffled back until the deck runs dry.
+            // Spent cards (a used Second Chance) go back too, so the deck stays whole.
             _discard.AddRange(hand.Tableau.Cards);
+            _discard.AddRange(hand.Tableau.Spent);
             hand.Tableau.Clear();
         }
 

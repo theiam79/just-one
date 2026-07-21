@@ -44,7 +44,7 @@
             </div>
 
             <div class="f7line">
-                @if (p.Line.Count == 0)
+                @if (p.Line.Count == 0 && p.SpentLine.Count == 0)
                 {
                     <span class="f7empty">nothing yet</span>
                 }
@@ -53,6 +53,11 @@
                     @foreach (var card in p.Line)
                     {
                         <Flip7Card Card="card" Faded="@(p.Status == RoundStatus.Busted)" />
+                    }
+                    @* A used Second Chance stays face up, spent, so the table remembers it saved a bust. *@
+                    @foreach (var card in p.SpentLine)
+                    {
+                        <Flip7Card Card="card" Used="true" />
                     }
                 }
             </div>

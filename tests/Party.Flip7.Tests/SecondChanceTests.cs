@@ -15,7 +15,7 @@ public class SecondChanceTests
     }
 
     [Test]
-    public async Task Cancels_a_bust_and_discards_both_cards()
+    public async Task Cancels_a_bust_spending_the_second_chance()
     {
         // The deck is one shared sequence, so the others stay rather than drawing Bob's cards.
         var room = Started3(Num(5), Num(2), Num(3), SecondChance, Num(5));
@@ -26,10 +26,26 @@ public class SecondChanceTests
         room.Hit(Bob);   // a second 5
 
         await Assert.That(room.StatusOf(Bob)).IsEqualTo(RoundStatus.Active);
-        await Assert.That(room.LineOf(Bob).HasSecondChance).IsFalse();
+        await Assert.That(room.LineOf(Bob).HasSecondChance).IsFalse();   // no longer a live one
         await Assert.That(room.NumbersOf(Bob)).IsEquivalentTo(new[] { 5 });
-        // Both the Second Chance and the duplicate go to the discard pile.
-        await Assert.That(room.DiscardCount).IsEqualTo(discardBefore + 2);
+        // Only the duplicate is discarded now; the spent Second Chance stays face up until the
+        // round ends, so the table remembers it saved a bust.
+        await Assert.That(room.DiscardCount).IsEqualTo(discardBefore + 1);
+        await Assert.That(room.LineOf(Bob).Spent.Any(c => c is ActionCard { Kind: ActionKind.SecondChance })).IsTrue();
+    }
+
+    [Test]
+    public async Task A_spent_second_chance_does_not_block_holding_another()
+    {
+        var room = Started3(Num(5), Num(2), Num(3), SecondChance, Num(5), SecondChance);
+        room.Hit(Bob);   // Second Chance held
+        room.Stay(Carol);
+        room.Stay(Alice);
+        room.Hit(Bob);   // duplicate 5 -> spends it
+        room.Hit(Bob);   // a fresh Second Chance -> held again, the spent one doesn't count
+
+        await Assert.That(room.LineOf(Bob).HasSecondChance).IsTrue();
+        await Assert.That(room.LineOf(Bob).Spent.Count).IsEqualTo(1);
     }
 
     [Test]

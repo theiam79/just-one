@@ -36,4 +36,15 @@ public class Flip7CardTests
 
         await Assert.That(card.Find(".f7card").ClassList).Contains("faded");
     }
+
+    [Test]
+    public async Task A_used_card_is_marked_used()
+    {
+        using var ctx = new BunitContext();
+        var card = ctx.Render<Flip7Card>(p => p
+            .Add(x => x.Card, new ActionCard(ActionKind.SecondChance))
+            .Add(x => x.Used, true));
+
+        await Assert.That(card.Find(".f7card").ClassList).Contains("used");
+    }
 }

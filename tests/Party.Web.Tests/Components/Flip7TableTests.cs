@@ -108,6 +108,21 @@ public class Flip7TableTests
     }
 
     [Test]
+    public async Task A_spent_second_chance_is_shown_used()
+    {
+        using var ctx = new BunitContext();
+        var room = Room(new NumberCard(5), new NumberCard(1), new NumberCard(2),
+                        new ActionCard(ActionKind.SecondChance), new NumberCard(5));
+        room.Hit(Bob);      // Second Chance held
+        room.Stay(Carol);
+        room.Stay(Alice);
+        room.Hit(Bob);      // duplicate 5 -> Second Chance spent
+
+        var seat = Seat(Render(ctx, room, Alice), "Bob");
+        await Assert.That(seat.QuerySelectorAll(".f7card.used")).IsNotEmpty();
+    }
+
+    [Test]
     public async Task Whose_go_it_is_is_marked()
     {
         using var ctx = new BunitContext();

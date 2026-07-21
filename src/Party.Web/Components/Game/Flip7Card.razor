@@ -2,13 +2,16 @@
 @* Both games have a Card; this file means Flip 7's. *@
 @using Card = Party.Flip7.Card
 
-<span class="f7card @Kind @(Faded ? "faded" : "")" title="@Title">@Label</span>
+<span class="f7card @Kind @(Faded ? "faded" : "") @(Used ? "used" : "")" title="@(Used ? $"{Title} — used" : Title)">@Label</span>
 
 @code {
     [Parameter, EditorRequired] public required Card Card { get; set; }
 
     /// <summary>Busted lines are turned face down at the table; here they just dim.</summary>
     [Parameter] public bool Faded { get; set; }
+
+    /// <summary>A card that was played and spent (a used Second Chance): stays, shown translucent.</summary>
+    [Parameter] public bool Used { get; set; }
 
     private string Kind => Card switch
     {

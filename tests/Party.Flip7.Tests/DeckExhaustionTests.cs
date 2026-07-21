@@ -5,10 +5,10 @@ namespace Party.Flip7.Tests;
 public class DeckExhaustionTests
 {
     [Test]
-    public async Task Reshuffling_only_takes_back_what_was_discarded()
+    public async Task A_spent_second_chance_stays_out_of_the_discard_pile()
     {
-        // Bob spends a Second Chance, putting two cards in the discard pile. Everything else is
-        // still in front of somebody, so those two are all the reshuffle has to work with.
+        // Bob spends a Second Chance. Only the duplicate reaches the discard pile; the spent card
+        // stays face up in front of Bob until the round ends, so a reshuffle can't take it back.
         var room = ExactDeck(
             Num(5), Num(2), Num(3),   // deal
             SecondChance,             // Bob
@@ -20,16 +20,11 @@ public class DeckExhaustionTests
         room.Hit(Bob);     // Second Chance
         room.Stay(Carol);
         room.Stay(Alice);
-        room.Hit(Bob);     // duplicate 5 -> Second Chance + the 5 both discarded
+        room.Hit(Bob);     // duplicate 5 -> Second Chance spent, only the 5 discarded
 
-        await Assert.That(room.DiscardCount).IsEqualTo(2);
+        await Assert.That(room.DiscardCount).IsEqualTo(1);
         await Assert.That(room.DeckCount).IsEqualTo(1);
-
-        room.Hit(Bob);     // takes the last card, emptying the deck
-        await Assert.That(room.DeckCount).IsEqualTo(0);
-
-        room.Hit(Bob);     // forces a reshuffle of those two discards
-        await Assert.That(room.DeckCount).IsGreaterThanOrEqualTo(1);
+        await Assert.That(room.LineOf(Bob).Spent.Count).IsEqualTo(1);
     }
 
     [Test]
@@ -154,7 +149,9 @@ public class DeckExhaustionTests
 
     private static int Total(Flip7Room room)
     {
-        var onTable = room.Round!.Hands.Values.Sum(h => h.Tableau.Cards.Count);
+        // Count spent cards too (a used Second Chance): they sit on the table, out of the live
+        // line and the discard pile, until the round ends — otherwise this guard is blind to them.
+        var onTable = room.Round!.Hands.Values.Sum(h => h.Tableau.Cards.Count + h.Tableau.Spent.Count);
         return room.DeckCount + room.DiscardCount + onTable;
     }
 }

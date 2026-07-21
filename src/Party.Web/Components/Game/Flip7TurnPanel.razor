@@ -78,6 +78,16 @@
             }
         </p>
     }
+
+    @* A personal preference, shown to anyone still in the round — including on the turns it plays
+       for you, so you can always switch it back off. *@
+    @if (!View.IAmSpectator && Me is { Status: RoundStatus.Active })
+    {
+        <label class="autohit" title="While you hold a Second Chance, cards are taken for you — a bust just spends it">
+            <input type="checkbox" checked="@View.AutoHitSecondChance" @onchange="ToggleAutoHit" />
+            <span>Auto-hit while I hold a Second Chance ♻</span>
+        </label>
+    }
 </div>
 
 @code {
@@ -95,6 +105,9 @@
             ? "Freeze someone — they bank what they have and are out of the round."
             : "Flip Three — they take the next three cards, one at a time.",
     };
+
+    private void ToggleAutoHit(ChangeEventArgs e) =>
+        Act(r => r.SetAutoHitSecondChance(View.MyId, e.Value is true));
 
     /// <summary>What an onlooker is watching get placed — no hidden information here.</summary>
     private string PlacingDescription => View.PlacingCard switch

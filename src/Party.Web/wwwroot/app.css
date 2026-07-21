@@ -386,6 +386,9 @@ button.clue-card:disabled { cursor: default; }
 .turn-timer .timer-who { color: var(--muted); font-size: 0.85rem; }
 .turn-timer.up { border-color: var(--bad); color: var(--bad); }
 
+.autohit { display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.9rem; color: var(--muted); font-size: 0.85rem; cursor: pointer; }
+.autohit input { width: auto; }
+
 .f7actions { display: flex; gap: 0.75rem; }
 .f7actions .btn { flex: 1; }
 

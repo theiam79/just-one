@@ -45,10 +45,12 @@ public class Flip7TurnPanelTests
         var room = Room(new NumberCard(1), new NumberCard(2), new NumberCard(3), new ActionCard(ActionKind.Freeze));
         room.Hit(Bob);
 
-        var text = Render(ctx, room, Bob).Markup;
-        await Assert.That(text).Contains("Freeze someone");
-        await Assert.That(text).DoesNotContain("Second Chance");
-        await Assert.That(text).DoesNotContain("next three cards");
+        // Scope to the prompt itself — the panel also carries the auto-hit preference, which
+        // legitimately mentions Second Chance.
+        var prompt = Render(ctx, room, Bob).Find(".f7played").TextContent;
+        await Assert.That(prompt).Contains("Freeze someone");
+        await Assert.That(prompt).DoesNotContain("Second Chance");
+        await Assert.That(prompt).DoesNotContain("next three cards");
     }
 
     [Test]
@@ -241,5 +243,31 @@ public class Flip7TurnPanelTests
         room.ChooseTarget(Bob, Carol);
 
         await Assert.That(Render(ctx, room, Carol).Markup).Contains("You were frozen on 2");
+    }
+
+    [Test]
+    public async Task An_active_player_gets_the_auto_hit_toggle_reflecting_their_preference()
+    {
+        using var ctx = new BunitContext();
+        var room = Room(new NumberCard(5), new NumberCard(1), new NumberCard(2));   // Bob is up, active
+
+        await Assert.That(Render(ctx, room, Bob).Find(".autohit input").HasAttribute("checked")).IsFalse();
+
+        room.SetAutoHitSecondChance(Bob, true);
+        await Assert.That(Render(ctx, room, Bob).Find(".autohit input").HasAttribute("checked")).IsTrue();
+    }
+
+    [Test]
+    public async Task Ticking_the_toggle_sets_the_preference()
+    {
+        using var ctx = new BunitContext();
+        var room = Room(new NumberCard(5), new NumberCard(1), new NumberCard(2));
+        var panel = ctx.Render<Flip7TurnPanel>(p => p
+            .Add(x => x.View, Flip7View.Build(room, Bob))
+            .Add(x => x.Act, a => a(room)));
+
+        panel.Find(".autohit input").Change(true);
+
+        await Assert.That(room.AutoHitsSecondChance(Bob)).IsTrue();
     }
 }

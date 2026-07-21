@@ -80,6 +80,9 @@ public sealed record Flip7View
     /// <summary>Each finished round's points by player, oldest round first — the scorecard's rows.</summary>
     public required IReadOnlyList<IReadOnlyDictionary<Guid, int>> RoundScores { get; init; }
 
+    /// <summary>Whether the viewer has asked to auto-hit while they hold a Second Chance.</summary>
+    public required bool AutoHitSecondChance { get; init; }
+
     /// <summary>The room's per-turn timer setting in seconds, or 0 for none.</summary>
     public required int TurnTimerSeconds { get; init; }
 
@@ -159,6 +162,7 @@ public sealed record Flip7View
             Flip7PlayerId = round?.Flip7PlayerId,
             WinnerId = room.Winner,
             RoundScores = [.. room.RoundScores.Select(r => (IReadOnlyDictionary<Guid, int>)new Dictionary<Guid, int>(r))],
+            AutoHitSecondChance = room.AutoHitsSecondChance(viewerId),
             TurnTimerSeconds = room.TurnTimerSeconds,
             // Only surfaced while a turn is actually on the clock: not during a card placement,
             // which pauses the turn, and not once the round is over.

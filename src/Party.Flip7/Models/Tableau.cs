@@ -13,12 +13,29 @@ namespace Party.Flip7;
 public sealed class Tableau
 {
     private readonly List<Card> _cards = [];
+    private readonly List<Card> _spent = [];
 
     public IReadOnlyList<Card> Cards => _cards;
+
+    /// <summary>
+    /// Cards that were played and used up but stay face up until the round ends — a spent Second
+    /// Chance, shown struck through/translucent so the table remembers it saved a bust. Not part
+    /// of <see cref="Cards"/>, so nothing counts them for score or treats them as still held.
+    /// </summary>
+    public IReadOnlyList<Card> Spent => _spent;
 
     public void Add(Card card) => _cards.Add(card);
 
     public bool Remove(Card card) => _cards.Remove(card);
+
+    /// <summary>Moves a card out of the live line but keeps it on the table, marked as used.</summary>
+    public void Spend(Card card)
+    {
+        if (_cards.Remove(card))
+        {
+            _spent.Add(card);
+        }
+    }
 
     public bool IsEmpty => _cards.Count == 0;
 
@@ -39,5 +56,9 @@ public sealed class Tableau
 
     public Card? SecondChance => _cards.FirstOrDefault(c => c is ActionCard { Kind: ActionKind.SecondChance });
 
-    public void Clear() => _cards.Clear();
+    public void Clear()
+    {
+        _cards.Clear();
+        _spent.Clear();
+    }
 }

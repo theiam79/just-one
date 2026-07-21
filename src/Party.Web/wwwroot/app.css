@@ -427,6 +427,8 @@ button.clue-card:disabled { cursor: default; }
 .f7card.flip3  { background: var(--card-flip3);  color: #3a2f00; border-color: var(--card-flip3); }
 .f7card.second { background: var(--card-second); color: #3d0a1f; border-color: var(--card-second); }
 .f7card.faded { opacity: 0.45; }
+/* A spent card (a used Second Chance) stays on the table, translucent and struck through. */
+.f7card.used { opacity: 0.5; text-decoration: line-through; }
 
 /* ---- Flip 7 round log ---- */
 .f7log { margin-top: 0.9rem; background: var(--surface); border: 1px solid #2a3047; border-radius: var(--radius); padding: 0.6rem 0.75rem; }

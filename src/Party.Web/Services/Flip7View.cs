@@ -15,6 +15,7 @@ public sealed record Flip7PlayerView(
     bool IsTheirTurn,
     RoundStatus Status,
     IReadOnlyList<Card> Line,
+    IReadOnlyList<Card> SpentLine,
     int RoundScore,
     int Total)
 {
@@ -97,6 +98,7 @@ public sealed record Flip7View
             {
                 var hand = round?.Hands.GetValueOrDefault(p.Id);
                 IReadOnlyList<Card> line = hand is null ? [] : [.. hand.Tableau.Cards];
+                IReadOnlyList<Card> spent = hand is null ? [] : [.. hand.Tableau.Spent];
                 return new Flip7PlayerView(
                     p.Id,
                     p.Name,
@@ -108,6 +110,7 @@ public sealed record Flip7View
                     round is not null && round.CurrentPlayerId == p.Id,
                     hand?.Status ?? RoundStatus.Active,
                     line,
+                    spent,
                     hand is null ? 0 : Flip7Rules.Score(hand.Tableau, !hand.Scores),
                     room.Totals.GetValueOrDefault(p.Id));
             })

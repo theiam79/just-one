@@ -37,6 +37,12 @@ public sealed class Tableau
         }
     }
 
+    /// <summary>
+    /// Lays a card straight onto the table as spent, without it ever being part of the live line —
+    /// a Flip Three that fired here, kept in front of the target so the table remembers it.
+    /// </summary>
+    public void AddSpent(Card card) => _spent.Add(card);
+
     public bool IsEmpty => _cards.Count == 0;
 
     public IEnumerable<NumberCard> Numbers => _cards.OfType<NumberCard>();

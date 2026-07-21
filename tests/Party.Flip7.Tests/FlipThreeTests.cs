@@ -15,14 +15,36 @@ public class FlipThreeTests
     }
 
     [Test]
-    public async Task The_card_itself_is_discarded_as_soon_as_it_resolves()
+    public async Task The_card_stays_spent_in_front_of_the_target()
     {
         var room = Started3(Num(1), Num(2), Num(3), FlipThree, Num(4), Num(5), Num(6));
         room.Hit(Bob);
         var before = room.DiscardCount;
-        room.ChooseTarget(Bob, Carol);
+        room.ChooseTarget(Bob, Carol);   // the Flip Three lands on Carol
 
-        await Assert.That(room.DiscardCount).IsEqualTo(before + 1);
+        // It isn't discarded on the spot — it stays face up in front of Carol, spent, so the
+        // table remembers a Flip Three landed here. (It rejoins the discard at round end.)
+        await Assert.That(room.DiscardCount).IsEqualTo(before);
+        await Assert.That(room.LineOf(Carol).Spent.Any(c => c is ActionCard { Kind: ActionKind.FlipThree })).IsTrue();
+    }
+
+    [Test]
+    public async Task The_spent_flip_three_rejoins_the_discard_at_round_end()
+    {
+        // An exact deck, so nothing hides in filler: 3 dealt + the Flip Three + its 3 flips = 7.
+        var room = ExactDeck(Num(1), Num(2), Num(3), FlipThree, Num(4), Num(5), Num(6));
+        Lobby3(room);
+        room.StartGame(Alice);
+        room.Hit(Bob);
+        room.ChooseTarget(Bob, Carol);   // Carol: 2, 4, 5, 6 with a spent ⤬3
+        room.Stay(Carol);
+        room.Stay(Alice);
+        room.Stay(Bob);                  // round ends
+
+        await Assert.That(room.Phase).IsEqualTo(Flip7Phase.RoundResult);
+        // Every card is back in the discard — the spent Flip Three included, none lost.
+        await Assert.That(room.DiscardCount).IsEqualTo(7);
+        await Assert.That(room.LineOf(Carol).Spent).IsEmpty();
     }
 
     [Test]

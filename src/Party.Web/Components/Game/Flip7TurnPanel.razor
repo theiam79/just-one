@@ -25,7 +25,11 @@
     }
     else if (View.ChoosingPlayerName is { } chooser)
     {
-        <h2>@chooser is placing a card…</h2>
+        <h2>@chooser is placing @PlacingDescription…</h2>
+        @if (View.PlacingCard is { } card)
+        {
+            <p class="f7played"><Flip7Card Card="card" /></p>
+        }
         <p class="hint">Nothing else happens until they do.</p>
     }
     else if (View.IAmCurrentPlayer)
@@ -90,5 +94,14 @@
         _ => View.MyChoiceCard is ActionCard { Kind: ActionKind.Freeze }
             ? "Freeze someone — they bank what they have and are out of the round."
             : "Flip Three — they take the next three cards, one at a time.",
+    };
+
+    /// <summary>What an onlooker is watching get placed — no hidden information here.</summary>
+    private string PlacingDescription => View.PlacingCard switch
+    {
+        ActionCard { Kind: ActionKind.Freeze } => "a Freeze",
+        ActionCard { Kind: ActionKind.FlipThree } => "a Flip Three",
+        ActionCard { Kind: ActionKind.SecondChance } => "a spare Second Chance",
+        _ => "a card",
     };
 }

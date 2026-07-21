@@ -1,7 +1,10 @@
 namespace Party.Core.Tests;
 
-/// <summary>Room chat is shared plumbing: anyone in the room can talk, and it stays ephemeral.</summary>
-public class ChatTests
+/// <summary>
+/// The room feed is shared plumbing: one ordered stream carrying both chat and game narration.
+/// Anyone in the room can talk, narration drops in alongside, and old lines scroll off.
+/// </summary>
+public class FeedTests
 {
     private static readonly Guid Alice = Guid.Parse("00000000-0000-0000-0000-000000000001");
     private static readonly Guid Bob = Guid.Parse("00000000-0000-0000-0000-000000000002");
@@ -15,22 +18,39 @@ public class ChatTests
         return room;
     }
 
+    private static IReadOnlyList<ChatEntry> Chat(TestRoom room) => [.. room.Feed.OfType<ChatEntry>()];
+
     [Test]
-    public async Task A_message_records_its_sender_and_text()
+    public async Task A_chat_message_records_its_sender_and_text()
     {
         var room = Room();
         room.PostChat(Alice, "hello");
 
-        var msg = room.Chat.Single();
+        var msg = Chat(room).Single();
         await Assert.That(msg.SenderId).IsEqualTo(Alice);
         await Assert.That(msg.SenderName).IsEqualTo("Alice");
         await Assert.That(msg.Text).IsEqualTo("hello");
     }
 
     [Test]
+    public async Task Chat_and_narration_share_one_ordered_stream()
+    {
+        var room = Room();
+        room.PostChat(Alice, "nice");
+        room.Say("Bob drew 7", "draw");
+        room.PostChat(Bob, "thanks");
+
+        await Assert.That(room.Feed.Count).IsEqualTo(3);
+        await Assert.That(room.Feed[0]).IsTypeOf<ChatEntry>();
+        await Assert.That(room.Feed[1]).IsTypeOf<NarrationEntry>();
+        await Assert.That(room.Feed[2]).IsTypeOf<ChatEntry>();
+        // Seq is monotonic across both kinds, so the panel can render them in one order.
+        await Assert.That(room.Feed.Select(e => e.Seq)).IsEquivalentTo(new long[] { 0, 1, 2 });
+    }
+
+    [Test]
     public async Task A_spectator_can_still_talk()
     {
-        // A mid-game joiner watches rather than plays, but the doc promises they can still chat.
         var carol = Guid.Parse("00000000-0000-0000-0000-000000000003");
         var dave = Guid.Parse("00000000-0000-0000-0000-000000000004");
         var room = new TestRoom();
@@ -46,7 +66,7 @@ public class ChatTests
         await Assert.That(room.Players.Single(p => p.Id == dave).IsSpectator).IsTrue();
         room.PostChat(dave, "hi from the sidelines");
 
-        await Assert.That(room.Chat.Single().SenderName).IsEqualTo("Dave");
+        await Assert.That(Chat(room).Single().SenderName).IsEqualTo("Dave");
     }
 
     [Test]
@@ -56,7 +76,7 @@ public class ChatTests
         room.PostChat(Alice, "   ");
         room.PostChat(Alice, "");
 
-        await Assert.That(room.Chat).IsEmpty();
+        await Assert.That(room.Feed).IsEmpty();
     }
 
     [Test]
@@ -66,8 +86,8 @@ public class ChatTests
         room.PostChat(Alice, "  spaced  ");
         room.PostChat(Bob, new string('x', RoomBase.MaxChatLength + 50));
 
-        await Assert.That(room.Chat[0].Text).IsEqualTo("spaced");
-        await Assert.That(room.Chat[1].Text.Length).IsEqualTo(RoomBase.MaxChatLength);
+        await Assert.That(Chat(room)[0].Text).IsEqualTo("spaced");
+        await Assert.That(Chat(room)[1].Text.Length).IsEqualTo(RoomBase.MaxChatLength);
     }
 
     [Test]
@@ -76,21 +96,21 @@ public class ChatTests
         var room = Room();
 
         Assert.Throws<GameRuleException>(() => room.PostChat(Stranger, "sneaking in"));
-        await Assert.That(room.Chat).IsEmpty();
+        await Assert.That(room.Feed).IsEmpty();
     }
 
     [Test]
-    public async Task Sequence_numbers_keep_rising_even_as_old_messages_fall_off()
+    public async Task Old_lines_fall_off_but_sequences_keep_rising()
     {
         var room = Room();
-        for (var i = 0; i < 250; i++)   // more than the kept history
+        for (var i = 0; i < 400; i++)   // more than the kept history
         {
             room.PostChat(Alice, $"m{i}");
         }
 
-        await Assert.That(room.Chat.Count).IsLessThanOrEqualTo(200);
-        // The oldest kept message is newer than the very first, and sequences never repeat.
-        await Assert.That(room.Chat.Select(m => m.Sequence).Distinct().Count()).IsEqualTo(room.Chat.Count);
-        await Assert.That(room.Chat[^1].Text).IsEqualTo("m249");
+        await Assert.That(room.Feed.Count).IsLessThanOrEqualTo(300);
+        // Sequences never repeat, even as old lines fall off, and the newest is last.
+        await Assert.That(room.Feed.Select(e => e.Seq).Distinct().Count()).IsEqualTo(room.Feed.Count);
+        await Assert.That(((ChatEntry)room.Feed[^1]).Text).IsEqualTo("m399");
     }
 }

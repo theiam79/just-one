@@ -94,9 +94,6 @@ public sealed class Flip7Room : RoomBase
     public int DeckCount => _deck.Count;
     public int DiscardCount => _discard.Count;
 
-    /// <summary>What has happened this round, in words. Cleared when a new round starts.</summary>
-    public GameLog Log { get; } = new();
-
     /// <summary>How long each turn gets before it auto-stays, or 0 for no timer. A lobby setting.</summary>
     public int TurnTimerSeconds { get; private set; }
 
@@ -235,7 +232,7 @@ public sealed class Flip7Room : RoomBase
         }
 
         hand.Status = RoundStatus.Stayed;
-        Log.Add($"{Name(callerId)} stays.", Flip7LogKind.Stay);
+        Narrate($"{Name(callerId)} stays.", Flip7LogKind.Stay);
         _turnSpent = true;
         Pump();
     }
@@ -430,7 +427,7 @@ public sealed class Flip7Room : RoomBase
         if (!hand.Tableau.IsEmpty)
         {
             hand.Status = RoundStatus.Stayed;
-            Log.Add($"{Name(id)} stays (away).", Flip7LogKind.Stay);
+            Narrate($"{Name(id)} stays (away).", Flip7LogKind.Stay);
             _turnSpent = true;
             return;
         }
@@ -503,7 +500,7 @@ public sealed class Flip7Room : RoomBase
     private void Give(Guid id, Card card)
     {
         var hand = Round![id];
-        Log.Add($"{Name(id)} drew {CardWord(card)}.", Flip7LogKind.Draw);
+        Narrate($"{Name(id)} drew {CardWord(card)}.", Flip7LogKind.Draw);
 
         switch (card)
         {
@@ -516,13 +513,13 @@ public sealed class Flip7Room : RoomBase
                     // they stay active.
                     hand.Tableau.Spend(saved);
                     _discard.Add(number);
-                    Log.Add($"{Name(id)}'s Second Chance cancels the second {number.Value}.", Flip7LogKind.SecondChance);
+                    Narrate($"{Name(id)}'s Second Chance cancels the second {number.Value}.", Flip7LogKind.SecondChance);
                     return;
                 }
 
                 hand.Tableau.Add(number);
                 hand.Status = RoundStatus.Busted;
-                Log.Add($"{Name(id)} busts on a second {number.Value}.", Flip7LogKind.Bust);
+                Narrate($"{Name(id)} busts on a second {number.Value}.", Flip7LogKind.Bust);
                 return;
 
             case NumberCard number:
@@ -530,7 +527,7 @@ public sealed class Flip7Room : RoomBase
                 if (Flip7Rules.IsFlip7(hand.Tableau))
                 {
                     Round.Flip7PlayerId = id;
-                    Log.Add($"{Name(id)} hits Flip 7!", Flip7LogKind.Flip7);
+                    Narrate($"{Name(id)} hits Flip 7!", Flip7LogKind.Flip7);
                 }
 
                 return;
@@ -562,7 +559,7 @@ public sealed class Flip7Room : RoomBase
             if (SecondChanceRecipients(id).Count == 0)
             {
                 _discard.Add(action);
-                Log.Add($"{Name(id)} already holds a Second Chance — the extra is discarded.", Flip7LogKind.Info);
+                Narrate($"{Name(id)} already holds a Second Chance — the extra is discarded.", Flip7LogKind.Info);
                 return;
             }
 
@@ -608,7 +605,7 @@ public sealed class Flip7Room : RoomBase
         if (choice.Kind is ChoiceKind.SecondChanceRecipient)
         {
             Round![targetId].Tableau.Add(choice.Card);
-            Log.Add($"{Name(choice.ChooserId)} gives {Name(targetId)} a Second Chance.", Flip7LogKind.SecondChance);
+            Narrate($"{Name(choice.ChooserId)} gives {Name(targetId)} a Second Chance.", Flip7LogKind.SecondChance);
             return;
         }
 
@@ -634,13 +631,13 @@ public sealed class Flip7Room : RoomBase
                 // ends, so it isn't available to a mid-round reshuffle.
                 hand.Tableau.Add(card);
                 hand.Status = RoundStatus.Frozen;
-                Log.Add(FromTo(chooserId, targetId, "freezes"), Flip7LogKind.Freeze);
+                Narrate(FromTo(chooserId, targetId, "freezes"), Flip7LogKind.Freeze);
                 return;
 
             case ActionKind.FlipThree:
                 _discard.Add(card);
                 _flipThree = new FlipThreeState { TargetId = targetId };
-                Log.Add(FromTo(chooserId, targetId, "flips three on"), Flip7LogKind.FlipThree);
+                Narrate(FromTo(chooserId, targetId, "flips three on"), Flip7LogKind.FlipThree);
                 return;
         }
     }
@@ -720,9 +717,9 @@ public sealed class Flip7Room : RoomBase
         _turnIndex = -1;
         _turnSpent = false;
 
-        // The log is the current round's story, so it starts fresh each round.
-        Log.Clear();
-        Log.Add($"Round {number} — dealing.", Flip7LogKind.Info);
+        // The feed keeps every round — this line just marks where a new one begins; scroll back
+        // for what came before.
+        Narrate($"Round {number} — dealing.", Flip7LogKind.Info);
 
         Phase = Flip7Phase.Dealing;
         Pump();
@@ -759,7 +756,7 @@ public sealed class Flip7Room : RoomBase
     /// <summary>Nothing left to deal and nothing to reshuffle: everyone still in banks what they have.</summary>
     private void ExhaustRound()
     {
-        Log.Add("The deck is spent — everyone still in banks their line.", Flip7LogKind.Info);
+        Narrate("The deck is spent — everyone still in banks their line.", Flip7LogKind.Info);
         foreach (var id in Round!.ActivePlayers.ToList())
         {
             Round[id].Status = RoundStatus.Stayed;
@@ -880,7 +877,7 @@ public sealed class Flip7Room : RoomBase
         }
 
         hand.Status = RoundStatus.Stayed;
-        Log.Add($"{Name(id)} is out — their line is banked.", Flip7LogKind.Info);
+        Narrate($"{Name(id)} is out — their line is banked.", Flip7LogKind.Info);
         while (_choices.Count > 0 && _choices.Peek().ChooserId == id)
         {
             var choice = _choices.Dequeue();

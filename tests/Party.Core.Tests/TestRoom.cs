@@ -42,6 +42,9 @@ internal sealed class TestRoom(int minSeats = 3, int maxSeats = 12) : RoomBase("
 
     public void NewGame() => ClearSpectators();
 
+    /// <summary>Exposes the protected narration hook so the feed's ordering can be tested directly.</summary>
+    public void Say(string text, string category = "info") => Narrate(text, category);
+
     public void AsHost(Guid callerId) => RequireHostPowers(callerId);
 
     public void AsSeated(Guid callerId) => RequireSeated(callerId);

@@ -17,16 +17,16 @@ namespace Party.Core;
 public abstract class RoomBase(string code)
 {
     private readonly List<Player> _players = [];
-    private readonly List<ChatMessage> _chat = [];
-    private int _chatSeq;
+    private readonly List<FeedEntry> _feed = [];
+    private long _feedSeq;
 
     public const int MaxNameLength = 20;
 
     /// <summary>Longest a single chat message may be; anything over is trimmed to fit.</summary>
     public const int MaxChatLength = 500;
 
-    /// <summary>How many recent messages a room keeps. Old ones fall off — chat is ephemeral.</summary>
-    private const int ChatHistory = 200;
+    /// <summary>How many recent feed lines a room keeps. Old ones scroll off — the feed is ephemeral.</summary>
+    private const int FeedHistory = 300;
 
     public string Code { get; } = code;
 
@@ -34,8 +34,12 @@ public abstract class RoomBase(string code)
 
     public Player? Host => _players.FirstOrDefault(p => p.IsHost);
 
-    /// <summary>The room's chat, oldest first. Shared by every game — it's just people talking.</summary>
-    public IReadOnlyList<ChatMessage> Chat => _chat;
+    /// <summary>
+    /// The room's one feed, oldest first: chat and the game's play-by-play in a single stream.
+    /// Shared by every game — chat is just people talking, and a game drops its narration in
+    /// alongside so both scroll together. Never cleared per round; old lines fall off the end.
+    /// </summary>
+    public IReadOnlyList<FeedEntry> Feed => _feed;
 
     /// <summary>
     /// Posts a chat message from someone in the room. Blank messages are ignored and over-long
@@ -56,10 +60,23 @@ public abstract class RoomBase(string code)
             text = text[..MaxChatLength];
         }
 
-        _chat.Add(new ChatMessage(_chatSeq++, sender.Id, sender.Name, text));
-        if (_chat.Count > ChatHistory)
+        Append(new ChatEntry(_feedSeq, sender.Id, sender.Name, text));
+    }
+
+    /// <summary>
+    /// Drops a line of game narration into the feed — the play-by-play, shown apart from chat but
+    /// in the same stream. The game names the category; the UI styles by it.
+    /// </summary>
+    protected void Narrate(string text, string category = "info") =>
+        Append(new NarrationEntry(_feedSeq, text, category));
+
+    private void Append(FeedEntry entry)
+    {
+        _feed.Add(entry);
+        _feedSeq++;
+        if (_feed.Count > FeedHistory)
         {
-            _chat.RemoveAt(0);
+            _feed.RemoveAt(0);
         }
     }
 

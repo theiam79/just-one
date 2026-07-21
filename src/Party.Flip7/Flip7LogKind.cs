@@ -1,8 +1,8 @@
 namespace Party.Flip7;
 
 /// <summary>
-/// The categories Flip 7 tags its <see cref="Party.Core.GameLogEntry"/> lines with. Each doubles
-/// as a CSS class the log panel styles by, so the strings are part of the contract.
+/// The categories Flip 7 tags its <see cref="Party.Core.NarrationEntry"/> lines with. Each doubles
+/// as a CSS class the feed panel styles by, so the strings are part of the contract.
 /// </summary>
 public static class Flip7LogKind
 {

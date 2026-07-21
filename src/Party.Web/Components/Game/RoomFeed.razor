@@ -1,0 +1,59 @@
+@using Party.Core
+
+@* The room's one feed: chat and the game's play-by-play in a single stream. Narration is styled
+   quieter (smaller, italic) so it reads apart from what people say. Newest sits at the bottom and
+   the box pins there with no JS (column-reverse fed newest-first); scroll up for history. *@
+
+<div class="feed">
+    <div class="feed-log">
+        @if (Feed.Count == 0)
+        {
+            <p class="feed-empty">Nothing yet — say hi.</p>
+        }
+        else
+        {
+            @foreach (var entry in Feed.Reverse())
+            {
+                @if (entry is ChatEntry chat)
+                {
+                    <div class="feed-chat @(chat.SenderId == MyId ? "mine" : "")">
+                        <span class="feed-from">@chat.SenderName</span>
+                        <span class="feed-text">@chat.Text</span>
+                    </div>
+                }
+                else if (entry is NarrationEntry note)
+                {
+                    <div class="feed-note @note.Category">@note.Text</div>
+                }
+            }
+        }
+    </div>
+    <form class="feed-form" @onsubmit="Send" @onsubmit:preventDefault>
+        <input class="feed-input" @bind="_draft" @bind:event="oninput"
+               maxlength="@RoomBase.MaxChatLength" placeholder="Say something…" aria-label="Chat message" />
+        <button class="btn tiny primary" type="submit" disabled="@string.IsNullOrWhiteSpace(_draft)">Send</button>
+    </form>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required IReadOnlyList<FeedEntry> Feed { get; set; }
+
+    [Parameter, EditorRequired] public required Guid MyId { get; set; }
+
+    /// <summary>Raised with the trimmed message text when the player sends.</summary>
+    [Parameter] public EventCallback<string> OnSend { get; set; }
+
+    private string _draft = "";
+
+    private async Task Send()
+    {
+        var text = _draft.Trim();
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        _draft = "";
+        await OnSend.InvokeAsync(text);
+    }
+}

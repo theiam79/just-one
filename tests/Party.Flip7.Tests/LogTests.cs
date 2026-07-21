@@ -1,3 +1,4 @@
+using Party.Core;
 using static Party.Flip7.Tests.TestGame;
 
 namespace Party.Flip7.Tests;
@@ -9,10 +10,11 @@ namespace Party.Flip7.Tests;
 /// </summary>
 public class LogTests
 {
-    private static IEnumerable<string> Texts(Flip7Room room) => room.Log.Entries.Select(e => e.Text);
+    private static IEnumerable<string> Texts(Flip7Room room) =>
+        room.Feed.OfType<NarrationEntry>().Select(e => e.Text);
 
     private static bool Logged(Flip7Room room, string category, string text) =>
-        room.Log.Entries.Any(e => e.Category == category && e.Text.Contains(text));
+        room.Feed.OfType<NarrationEntry>().Any(e => e.Category == category && e.Text.Contains(text));
 
     [Test]
     public async Task Draws_are_logged_as_they_are_dealt()
@@ -124,7 +126,7 @@ public class LogTests
     }
 
     [Test]
-    public async Task The_log_starts_fresh_each_round()
+    public async Task The_feed_keeps_earlier_rounds()
     {
         var room = Started3(Num(5), Num(4), Num(3));
         room.Stay(Bob);
@@ -133,7 +135,9 @@ public class LogTests
 
         room.NextRound(Alice);      // deal round 2
 
-        await Assert.That(room.Log.Entries.Any(e => e.Text.Contains("Round 2"))).IsTrue();
-        await Assert.That(room.Log.Entries.Any(e => e.Text == "Bob stays.")).IsFalse();
+        // The feed doesn't clear between rounds — the new round is marked, and round one's lines
+        // are still there to scroll back to.
+        await Assert.That(Texts(room).Any(t => t.Contains("Round 2"))).IsTrue();
+        await Assert.That(Texts(room).Any(t => t == "Bob stays.")).IsTrue();
     }
 }

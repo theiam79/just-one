@@ -62,9 +62,6 @@ public sealed record Flip7View
     public required Guid? Flip7PlayerId { get; init; }
     public required Guid? WinnerId { get; init; }
 
-    /// <summary>What has happened this round, oldest first. Empty in the lobby.</summary>
-    public required IReadOnlyList<GameLogEntry> Log { get; init; }
-
     /// <summary>The room's per-turn timer setting in seconds, or 0 for none.</summary>
     public required int TurnTimerSeconds { get; init; }
 
@@ -141,7 +138,6 @@ public sealed record Flip7View
                 : null,
             Flip7PlayerId = round?.Flip7PlayerId,
             WinnerId = room.Winner,
-            Log = [.. room.Log.Entries],
             TurnTimerSeconds = room.TurnTimerSeconds,
             // Only surfaced while a turn is actually on the clock: not during a card placement,
             // which pauses the turn, and not once the round is over.

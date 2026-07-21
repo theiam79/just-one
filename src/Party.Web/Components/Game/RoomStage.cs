@@ -36,8 +36,8 @@ public abstract class RoomStage<TRoom> : ComponentBase, IDisposable
         _ => "This room was closed after an hour of inactivity.",
     };
 
-    /// <summary>The room's chat, snapshotted each refresh. Shared plumbing — every game shows it.</summary>
-    protected IReadOnlyList<ChatMessage> Chat { get; private set; } = [];
+    /// <summary>The room's feed (chat + narration), snapshotted each refresh. Every game shows it.</summary>
+    protected IReadOnlyList<FeedEntry> Feed { get; private set; } = [];
 
     protected bool Joined { get; private set; }
 
@@ -147,7 +147,7 @@ public abstract class RoomStage<TRoom> : ComponentBase, IDisposable
         if (Joined)
         {
             BuildView(Handle, PlayerId);
-            Chat = Handle.Read(room => room.Chat.ToList());
+            Feed = Handle.Read(room => room.Feed.ToList());
         }
     }
 

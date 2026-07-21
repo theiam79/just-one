@@ -1,0 +1,45 @@
+@using Party.Flip7
+
+@* Points per player per round, plus the running total — the game's story in numbers. Shown once
+   at least one round is in the books, during play and on the result screen alike. *@
+
+<div class="scorecard">
+    <div class="scorecard-head">Scorecard</div>
+    <div class="scorecard-scroll">
+        <table class="scorecard-table">
+            <thead>
+                <tr>
+                    <th class="sc-name"></th>
+                    @for (var r = 1; r <= View.RoundScores.Count; r++)
+                    {
+                        <th title="Round @r">R@(r)</th>
+                    }
+                    <th class="sc-total">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Players)
+                {
+                    <tr class="@(p.Id == View.MyId ? "me" : "")">
+                        <td class="sc-name">@p.Name</td>
+                        @foreach (var round in View.RoundScores)
+                        {
+                            <td>@(round.TryGetValue(p.Id, out var s) ? s.ToString() : "–")</td>
+                        }
+                        <td class="sc-total">@p.Total</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required Flip7View View { get; set; }
+
+    // Seat order, not standings — a scorecard that reshuffles its rows every round is hard to read.
+    // Keep anyone still playing, plus anyone who already has a recorded score, so a player who left
+    // or was benched mid-game doesn't drop their columns from the card.
+    private IEnumerable<Flip7PlayerView> Players =>
+        View.Players.Where(p => !p.IsSpectator || View.RoundScores.Any(r => r.ContainsKey(p.Id)));
+}

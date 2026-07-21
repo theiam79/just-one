@@ -33,6 +33,9 @@ public sealed class Flip7Room : RoomBase
     private readonly List<Card> _discard = [];
     private readonly Dictionary<Guid, int> _totals = [];
 
+    /// <summary>Each finished round's points by player, oldest round first — the scorecard's data.</summary>
+    private readonly List<Dictionary<Guid, int>> _roundScores = [];
+
     /// <summary>Decisions the round is blocked on, oldest first.</summary>
     private readonly Queue<PendingChoice> _choices = new();
 
@@ -99,6 +102,9 @@ public sealed class Flip7Room : RoomBase
 
     /// <summary>Running totals across the game's rounds.</summary>
     public IReadOnlyDictionary<Guid, int> Totals => _totals;
+
+    /// <summary>Per-round points by player, one entry per finished round, oldest first.</summary>
+    public IReadOnlyList<IReadOnlyDictionary<Guid, int>> RoundScores => _roundScores;
 
     /// <summary>The decision the round is waiting on, if any. Nothing else can happen until it's answered.</summary>
     public PendingChoice? PendingChoice => _choices.Count > 0 ? _choices.Peek() : null;
@@ -195,6 +201,7 @@ public sealed class Flip7Room : RoomBase
         }
 
         _totals.Clear();
+        _roundScores.Clear();
         foreach (var id in seats)
         {
             _totals[id] = 0;
@@ -282,6 +289,7 @@ public sealed class Flip7Room : RoomBase
         Phase = Flip7Phase.Lobby;
         Round = null;
         _totals.Clear();
+        _roundScores.Clear();
         _deck.Clear();
         _discard.Clear();
         ClearSpectators();
@@ -791,10 +799,13 @@ public sealed class Flip7Room : RoomBase
             _discard.Add(_toResolve.Dequeue().Card);
         }
 
+        var roundScores = new Dictionary<Guid, int>();
         foreach (var id in Round!.Order)
         {
             var hand = Round[id];
-            _totals[id] = _totals.GetValueOrDefault(id) + Flip7Rules.Score(hand.Tableau, !hand.Scores);
+            var score = Flip7Rules.Score(hand.Tableau, !hand.Scores);
+            roundScores[id] = score;
+            _totals[id] = _totals.GetValueOrDefault(id) + score;
 
             // The round's cards are set aside — they aren't shuffled back until the deck runs dry.
             // Spent cards (a used Second Chance) go back too, so the deck stays whole.
@@ -802,6 +813,8 @@ public sealed class Flip7Room : RoomBase
             _discard.AddRange(hand.Tableau.Spent);
             hand.Tableau.Clear();
         }
+
+        _roundScores.Add(roundScores);
 
         Round.CurrentPlayerId = null;
         Phase = Flip7Phase.RoundResult;

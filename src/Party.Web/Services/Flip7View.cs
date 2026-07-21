@@ -21,6 +21,12 @@ public sealed record Flip7PlayerView(
 {
     /// <summary>Held, and worth nothing until it cancels a bust.</summary>
     public bool HasSecondChance => Line.Any(c => c is ActionCard { Kind: ActionKind.SecondChance });
+
+    /// <summary>
+    /// If this player banked their line right now, they'd reach the winning score — the stakes just
+    /// went up. False for a busted line, which banks nothing this round.
+    /// </summary>
+    public bool WillReachTarget => Status != RoundStatus.Busted && Total + RoundScore >= Flip7Rules.WinningScore;
 }
 
 /// <summary>
@@ -61,6 +67,9 @@ public sealed record Flip7View
 
     public required Guid? Flip7PlayerId { get; init; }
     public required Guid? WinnerId { get; init; }
+
+    /// <summary>Each finished round's points by player, oldest round first — the scorecard's rows.</summary>
+    public required IReadOnlyList<IReadOnlyDictionary<Guid, int>> RoundScores { get; init; }
 
     /// <summary>The room's per-turn timer setting in seconds, or 0 for none.</summary>
     public required int TurnTimerSeconds { get; init; }
@@ -138,6 +147,7 @@ public sealed record Flip7View
                 : null,
             Flip7PlayerId = round?.Flip7PlayerId,
             WinnerId = room.Winner,
+            RoundScores = [.. room.RoundScores.Select(r => (IReadOnlyDictionary<Guid, int>)new Dictionary<Guid, int>(r))],
             TurnTimerSeconds = room.TurnTimerSeconds,
             // Only surfaced while a turn is actually on the clock: not during a card placement,
             // which pauses the turn, and not once the round is over.

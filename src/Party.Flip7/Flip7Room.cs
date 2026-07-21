@@ -36,6 +36,9 @@ public sealed class Flip7Room : RoomBase
     /// <summary>Each finished round's points by player, oldest round first — the scorecard's data.</summary>
     private readonly List<Dictionary<Guid, int>> _roundScores = [];
 
+    /// <summary>Players who've asked to auto-hit while they hold a Second Chance. A sticky preference.</summary>
+    private readonly HashSet<Guid> _autoHitSecondChance = [];
+
     /// <summary>Decisions the round is blocked on, oldest first.</summary>
     private readonly Queue<PendingChoice> _choices = new();
 
@@ -142,6 +145,30 @@ public sealed class Flip7Room : RoomBase
     }
 
     // ---- Game flow ----
+
+    /// <summary>Whether this player has the auto-hit-on-Second-Chance preference on.</summary>
+    public bool AutoHitsSecondChance(Guid id) => _autoHitSecondChance.Contains(id);
+
+    /// <summary>
+    /// A personal preference: while this player holds a Second Chance, take cards for them on their
+    /// turn rather than wait — a bust just spends the Second Chance, so the run is safe until then,
+    /// and it stops the moment they no longer hold one. Any player sets their own; it sticks across
+    /// rounds and games.
+    /// </summary>
+    public void SetAutoHitSecondChance(Guid callerId, bool on)
+    {
+        GetPlayer(callerId);   // must be in the room to set a preference in it
+        if (on)
+        {
+            _autoHitSecondChance.Add(callerId);
+        }
+        else
+        {
+            _autoHitSecondChance.Remove(callerId);
+        }
+
+        Pump();   // if it's their turn now and they're covered, start straight away
+    }
 
     /// <summary>
     /// Sets the per-turn timer, or 0 to turn it off. A lobby setting so it can't change under the
@@ -410,6 +437,23 @@ public sealed class Flip7Room : RoomBase
             if (!IsConnected(current))
             {
                 AutoPlay(current);
+                continue;
+            }
+
+            // They asked to keep hitting while a held Second Chance covers them: take a card
+            // rather than wait. A bust just spends the Second Chance, so this stops on its own
+            // the moment they no longer hold one.
+            if (_autoHitSecondChance.Contains(current) && Round[current].Tableau.HasSecondChance)
+            {
+                var card = Draw();
+                if (card is null)
+                {
+                    ExhaustRound();
+                    return;
+                }
+
+                Give(current, card);
+                _turnSpent = true;
                 continue;
             }
 

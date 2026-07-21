@@ -453,4 +453,37 @@ public class RoomBaseTests
     {
         await Assert.That(new TestRoom().Code).IsEqualTo("TEST");
     }
+
+    [Test]
+    public async Task Adopting_a_roster_keeps_names_and_host_and_seats_up_to_the_limit()
+    {
+        var room = new TestRoom(minSeats: 1, maxSeats: 2);
+        room.AdoptRoster(
+        [
+            new Player { Id = Alice, Name = "Alice", IsHost = true },
+            new Player { Id = Bob, Name = "Bob" },
+            new Player { Id = Carol, Name = "Carol" },   // over the two-seat limit -> watches
+        ]);
+
+        await Assert.That(room.Players.Select(p => p.Name)).IsEquivalentTo(new[] { "Alice", "Bob", "Carol" });
+        await Assert.That(room.Host!.Name).IsEqualTo("Alice");
+        await Assert.That(room.Players.Single(p => p.Id == Alice).IsSpectator).IsFalse();
+        await Assert.That(room.Players.Single(p => p.Id == Carol).IsSpectator).IsTrue();
+    }
+
+    [Test]
+    public async Task An_over_capacity_switched_roster_stays_capped_when_a_game_starts()
+    {
+        var room = new TestRoom(minSeats: 1, maxSeats: 2);
+        room.AdoptRoster(
+        [
+            new Player { Id = Alice, Name = "Alice", IsHost = true },
+            new Player { Id = Bob, Name = "Bob" },
+            new Player { Id = Carol, Name = "Carol" },   // over the two-seat limit
+        ]);
+
+        room.Start();   // ClearSpectators must not deal all three in past the limit
+
+        await Assert.That(room.Players.Count(p => !p.IsSpectator)).IsEqualTo(2);
+    }
 }
